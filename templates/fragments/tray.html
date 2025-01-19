@@ -13,13 +13,18 @@
   <div class="card-body">
     <!-- Tray Sub-Brand and Type -->
     <div class="small text-muted mb-2">
+      {% if tray_data.tray_type %}
       {{ tray_data.tray_type }}
       {% if tray_data.tray_sub_brands %}
       <br/>
       {{ tray_data.tray_sub_brands }}
       {% endif %}
+      {% else %}
+      Empty
+      {% endif %}
     </div>
 
+    {% if tray_data.tray_type %}
     <!-- Badge with Dynamic Colors -->
     <span class="badge d-inline-block p-2"
           style="background-color: #{{ tray_data.tray_color }};
@@ -36,6 +41,7 @@
       <span class="fw-bold">{{ tray_data.remain }}%</span>
       {% endif %}
     </div>
+    {% endif %}
   </div>
   <div class="card-footer">
     {% if pick_tray %}
