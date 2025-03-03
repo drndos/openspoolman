@@ -4,7 +4,7 @@
 <h1 class="mb-4">Spool Info</h1>
 {% include 'fragments/spool_details.html' %}
 
-<h1 class="mb-4">Pick Tray</h1>
+<h1 class="mb-4">Assign Tray</h1>
 <!-- AMS and External Spool Row -->
 <div class="row">
   <!-- External Spool -->
@@ -22,8 +22,10 @@
   <div class="col-md-4 mb-4">
     <div class="card shadow-sm">
       <div class="card-header d-flex justify-content-between align-items-center">
-        <h5 class="mb-0">AMS {{ ams.id }}</h5>
+        <h5 class="mb-0">AMS{% if ams_data|length > 1 %} {{ ams.id|int +1 }} {% endif %}</h5>
+		{% if ams.temp != "0.0" %}
         <span class="text-muted small">Humidity: {{ ams.humidity }}%, Temp: {{ ams.temp }}°C</span>
+		{% endif %}
       </div>
       <div class="card-body">
         <div class="row">

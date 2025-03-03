@@ -8,7 +8,7 @@ from config import BASE_URL, AUTO_SPEND, SPOOLMAN_BASE_URL
 from filament import generate_filament_brand_code, generate_filament_temperatures
 from frontend_utils import color_is_dark
 from messages import AMS_FILAMENT_SETTING
-from mqtt_bambulab import fetchSpools, getLastAMSConfig, publish, getMqttClient, setActiveTray
+from mqtt_bambulab import fetchSpools, getLastAMSConfig, publish, getMqttClient, setActiveTray, isMqttClientConnected
 from spoolman_client import patchExtraTags, getSpoolById
 from spoolman_service import augmentTrayDataWithSpoolMan, trayUid
 
@@ -22,6 +22,9 @@ def fronted_utilities():
 
 @app.route("/issue")
 def issue():
+  if not isMqttClientConnected():
+    return render_template('error.html', exception="MQTT is disconnected. Is the printer online?")
+    
   ams_id = request.args.get("ams")
   tray_id = request.args.get("tray")
   if not all([ams_id, tray_id]):
@@ -55,6 +58,9 @@ def issue():
 
 @app.route("/fill")
 def fill():
+  if not isMqttClientConnected():
+    return render_template('error.html', exception="MQTT is disconnected. Is the printer online?")
+    
   ams_id = request.args.get("ams")
   tray_id = request.args.get("tray")
   if not all([ams_id, tray_id]):
@@ -68,22 +74,34 @@ def fill():
     return redirect(url_for('home', success_message=f"Updated Spool ID {spool_id} to AMS {ams_id}, Tray {tray_id}."))
   else:
     spools = fetchSpools()
+        
     return render_template('fill.html', spools=spools, ams_id=ams_id, tray_id=tray_id)
 
 @app.route("/spool_info")
 def spool_info():
+  if not isMqttClientConnected():
+    return render_template('error.html', exception="MQTT is disconnected. Is the printer online?")
+    
   try:
     tag_id = request.args.get("tag_id")
 
     last_ams_config = getLastAMSConfig()
     ams_data = last_ams_config.get("ams", [])
     vt_tray_data = last_ams_config.get("vt_tray", {})
+    spool_list = fetchSpools()
+    
+    issue = False
+    #TODO: Fix issue when external spool info is reset via bambulab interface
+    augmentTrayDataWithSpoolMan(spool_list, vt_tray_data, trayUid(EXTERNAL_SPOOL_AMS_ID, 254))
+    issue |= vt_tray_data["issue"]
 
-    print(ams_data)
-    print(vt_tray_data)
+    for ams in ams_data:
+      for tray in ams["tray"]:
+        augmentTrayDataWithSpoolMan(spool_list, tray, trayUid(ams["id"], tray["id"]))
+        issue |= tray["issue"]
 
     if not tag_id:
-      return render_template('error.html', exception="TAG ID is required as a query parameter (e.g., ?tagid=RFID123)")
+      return render_template('error.html', exception="TAG ID is required as a query parameter (e.g., ?tag_id=RFID123)")
 
     spools = fetchSpools()
     current_spool = None
@@ -104,6 +122,9 @@ def spool_info():
 
 @app.route("/tray_load")
 def tray_load():
+  if not isMqttClientConnected():
+    return render_template('error.html', exception="MQTT is disconnected. Is the printer online?")
+  
   tag_id = request.args.get("tag_id")
   ams_id = request.args.get("ams")
   tray_id = request.args.get("tray")
@@ -124,12 +145,19 @@ def tray_load():
     return render_template('error.html', exception=str(e))
 
 def setActiveSpool(ams_id, tray_id, spool_data):
+  if not isMqttClientConnected():
+    return render_template('error.html', exception="MQTT is disconnected. Is the printer online?")
+  
   ams_message = AMS_FILAMENT_SETTING
   ams_message["print"]["sequence_id"] = 0
   ams_message["print"]["ams_id"] = int(ams_id)
   ams_message["print"]["tray_id"] = int(tray_id)
-  ams_message["print"]["tray_color"] = spool_data["filament"]["color_hex"].upper() + "FF"
-
+  
+  if "color_hex" in spool_data["filament"]:
+    ams_message["print"]["tray_color"] = spool_data["filament"]["color_hex"].upper() + "FF"
+  else:
+    ams_message["print"]["tray_color"] = spool_data["filament"]["multi_color_hexes"].split(',')[0] + "FF"
+      
   if "nozzle_temperature" in spool_data["filament"]["extra"]:
     nozzle_temperature_range = spool_data["filament"]["extra"]["nozzle_temperature"].strip("[]").split(",")
     ams_message["print"]["nozzle_temp_min"] = int(nozzle_temperature_range[0])
@@ -155,16 +183,19 @@ def setActiveSpool(ams_id, tray_id, spool_data):
 
 @app.route("/")
 def home():
+  if not isMqttClientConnected():
+    return render_template('error.html', exception="MQTT is disconnected. Is the printer online?")
+    
   try:
     last_ams_config = getLastAMSConfig()
     ams_data = last_ams_config.get("ams", [])
     vt_tray_data = last_ams_config.get("vt_tray", {})
     spool_list = fetchSpools()
     success_message = request.args.get("success_message")
-
+    
     issue = False
     #TODO: Fix issue when external spool info is reset via bambulab interface
-    augmentTrayDataWithSpoolMan(spool_list, vt_tray_data, trayUid(EXTERNAL_SPOOL_AMS_ID, vt_tray_data["id"]))
+    augmentTrayDataWithSpoolMan(spool_list, vt_tray_data, trayUid(EXTERNAL_SPOOL_AMS_ID, 254))
     issue |= vt_tray_data["issue"]
 
     for ams in ams_data:
@@ -191,6 +222,9 @@ def sort_spools(spools):
 
 @app.route("/assign_tag")
 def assign_tag():
+  if not isMqttClientConnected():
+    return render_template('error.html', exception="MQTT is disconnected. Is the printer online?")
+    
   try:
     spools = sort_spools(fetchSpools())
 

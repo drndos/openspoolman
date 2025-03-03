@@ -9,8 +9,11 @@ from config import PRINTER_ID, PRINTER_CODE, PRINTER_IP, AUTO_SPEND
 from messages import GET_VERSION, PUSH_ALL
 from spoolman_service import spendFilaments, setActiveTray, fetchSpools
 from tools_3mf import getFilamentsUsageFrom3mf
+import time
 
 MQTT_CLIENT = {}  # Global variable storing MQTT Client
+MQTT_CLIENT_CONNECTED = False
+MQTT_KEEPALIVE = 60
 LAST_AMS_CONFIG = {}  # Global variable storing last AMS configuration
 
 
@@ -44,6 +47,8 @@ def on_message(client, userdata, msg):
         ams_mapping = data["print"]["ams_mapping"]
         if ams_used:
           spendFilaments(zip(ams_mapping, expected_filaments_usage))
+        else:
+          spendFilaments(zip([254], expected_filaments_usage))
 
     # Save external spool tray data
     if "print" in data and "vt_tray" in data["print"]:
@@ -83,13 +88,24 @@ def on_message(client, userdata, msg):
 
 
 def on_connect(client, userdata, flags, rc):
+  global MQTT_CLIENT_CONNECTED
+  MQTT_CLIENT_CONNECTED = True
   print("Connected with result code " + str(rc))
   client.subscribe(f"device/{PRINTER_ID}/report")
   publish(client, GET_VERSION)
   publish(client, PUSH_ALL)
 
+def on_disconnect(client, userdata, rc):
+  global MQTT_CLIENT_CONNECTED
+  MQTT_CLIENT_CONNECTED = False
+  print("Disconnected with result code " + str(rc))
+  
 def async_subscribe():
   global MQTT_CLIENT
+  global MQTT_CLIENT_CONNECTED
+  
+  print("🔄 Trying to connect ...", flush=True)
+  MQTT_CLIENT_CONNECTED = False
   MQTT_CLIENT = mqtt.Client()
   MQTT_CLIENT.username_pw_set("bblp", PRINTER_CODE)
   ssl_ctx = ssl.create_default_context()
@@ -98,10 +114,19 @@ def async_subscribe():
   MQTT_CLIENT.tls_set_context(ssl_ctx)
   MQTT_CLIENT.tls_insecure_set(True)
   MQTT_CLIENT.on_connect = on_connect
+  MQTT_CLIENT.on_disconnect = on_disconnect
   MQTT_CLIENT.on_message = on_message
-  MQTT_CLIENT.connect(PRINTER_IP, 8883)
-  MQTT_CLIENT.loop_forever()
-
+  
+  while True:
+    while not MQTT_CLIENT_CONNECTED:
+      try:
+          print("🔄 Trying to connect ...", flush=True)
+          MQTT_CLIENT.connect(PRINTER_IP, 8883, MQTT_KEEPALIVE)
+          MQTT_CLIENT.loop_start()
+          time.sleep(15)
+      except Exception as e:
+          print(f"⚠️ connection failed: {e}, new try in 15 seconds...", flush=True)
+          time.sleep(5)
 
 # Start the asynchronous processing in a separate thread
 thread = Thread(target=async_subscribe)
@@ -116,3 +141,7 @@ def getLastAMSConfig():
 def getMqttClient():
   global MQTT_CLIENT
   return MQTT_CLIENT
+
+def isMqttClientConnected():
+  global MQTT_CLIENT_CONNECTED
+  return MQTT_CLIENT_CONNECTED

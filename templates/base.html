@@ -8,6 +8,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>OpenSpoolMan</title>
   <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}">
+  <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
   <link href="{{ url_for('static', filename='css/bootstrap.min.css') }}" rel="stylesheet">
   <link href="{{ url_for('static', filename='css/bootstrap-icons.css') }}" rel="stylesheet">
   <link rel="apple-touch-icon" href="{{ url_for('static', filename='logo.png') }}">
@@ -37,7 +38,25 @@
     </div>
   </div>
 </header>
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+  function attachLinkListeners() {
+    document.querySelectorAll("a").forEach(link => {
+      link.addEventListener("click", function(event) {
+        event.preventDefault();
+        fetch(this.href)
+          .then(response => response.text())
+          .then(html => {
+            document.body.innerHTML = html;
+            attachLinkListeners(); // Neue Links erneut binden
+          });
+      });
+    });
+  }
 
+  attachLinkListeners();
+});
+</script>
 <main class="container">
   {% if success_message %}
   <div class="alert alert-success alert-dismissible fade show" role="alert">

@@ -9,15 +9,26 @@
 <div class="list-group">
   {% for spool in spools %}
   <!-- Individual Spool Item -->
-  {% if action_fill %}<a href="{{ url_for('fill', spool_id=spool.id, ams=ams_id, tray=tray_id) }}"
-     class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">{% endif %}
-  {% if action_assign %}<a href="{{ url_for('write_tag', spool_id=spool.id) }}"
-     class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">{% endif %}
+	<div class="spool-container list-group-item list-group-item-action d-flex justify-content-between align-items-center">
     <!-- Left: Filament Color Badge -->
     <div class="me-3">
-        <span class="badge d-inline-block"
+		{% if "multi_color_hexes" in spool.filament and spool.filament.multi_color_hexes is iterable and spool.filament.multi_color_hexes is not string%}
+		<!-- Badge with Dynamic Colors -->
+			{% if spool.filament.multi_color_direction == "coaxial" %}
+			<div class="spool-icon horizontal small">
+			{% else %}
+			<div class="spool-icon vertical small">
+			{% endif %}
+			
+			{% for color in spool.filament.multi_color_hexes %}
+				<div style="background-color:#{{ color }}" title="#{{ color }}"></div>
+			{% endfor %}
+		</div>
+		{% else %}
+		<span class="badge d-inline-block"
               style="background-color: #{{ spool.filament.color_hex }}; width: 20px; height: 50px;">
         </span>
+		{% endif %}
     </div>
 
     <!-- Middle: Filament Details -->
@@ -28,6 +39,13 @@
       <small class="text-muted">{{ spool.filament.name }}</small>
     </div>
 
+	<a href="{{ url_for('spool_info', tag_id=spool.extra.get("tag").strip('"')) }}">
+	<span class="badge bg-primary rounded-pill">
+                <i class="bi bi-info-circle"></i> Spool info
+            </span>
+	</a>
+  {% if action_fill %}<a href="{{ url_for('fill', spool_id=spool.id, ams=ams_id, tray=tray_id) }}">{% endif %}
+  {% if action_assign %}<a href="{{ url_for('write_tag', spool_id=spool.id) }}">{% endif %}
     {% if action_fill %}
     <span class="badge bg-primary rounded-pill">
                 <i class="bi bi-plus-circle"></i> Fill
@@ -46,6 +64,7 @@
     {% endif %}
     {% endif %}
   {% if action_fill or action_assign %}</a>{% endif %}
+  </div>
   {% endfor %}
 </div>
 {% endif %}

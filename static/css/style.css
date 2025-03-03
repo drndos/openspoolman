@@ -1,0 +1,52 @@
+.spool-container {
+    gap: 10px;
+}
+
+.spool-icon {
+    display: flex;
+    width: 2.5em;
+    height: 2em;
+    gap: 2px;
+    margin: 0 .5em
+}
+
+.spool-icon.vertical {
+    flex-direction: column
+}
+
+.spool-icon.small {
+    width: 20px;
+    margin: 0;
+    height: 50px;
+} 
+
+.spool-icon.large {
+    width: 4em;
+    height: 4em
+}
+
+.spool-icon * {
+    flex: 1 1 0px;
+    border-radius: 2px;
+    border: #44444430 solid 2px
+}
+
+.spool-icon.vertical *:first-child {
+    border-top-left-radius: 6px;
+    border-top-right-radius: 6px
+}
+
+.spool-icon.vertical *:last-child {
+    border-bottom-left-radius: 6px;
+    border-bottom-right-radius: 6px
+}
+
+.spool-icon.horizontal *:first-child {
+    border-top-left-radius: 6px;
+    border-bottom-left-radius: 6px
+}
+
+.spool-icon.horizontal *:last-child {
+    border-top-right-radius: 6px;
+    border-bottom-right-radius: 6px
+}
