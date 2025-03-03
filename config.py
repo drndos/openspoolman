@@ -1,4 +1,7 @@
 import os
+EXTERNAL_SPOOL_AMS_ID = 255 # don't change
+EXTERNAL_SPOOL_ID = 254 #  don't change
+
 
 BASE_URL = os.getenv('OPENSPOOLMAN_BASE_URL') # Where will this app be accessible
 PRINTER_ID = os.getenv('PRINTER_ID')  # Printer serial number - Run init_bambulab.py

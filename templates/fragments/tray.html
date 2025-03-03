@@ -5,9 +5,13 @@
     <i class="bi bi-exclamation-circle text-danger me-2"></i>
     {% endif %}
     {% if not tray_data.tray_type %}
-    Empty
+	Empty
     {% endif %}
-    Tray {{ tray_data.id }}
+	{% if ams_id|int != EXTERNAL_SPOOL_AMS_ID %}
+	Tray {{ (tray_data.id)|int + 1 }}
+	{% else %}
+	External
+	{% endif %}
   </div>
 
   <div class="card-body">
@@ -19,19 +23,41 @@
       <br/>
       {{ tray_data.tray_sub_brands }}
       {% endif %}
+	  <br/>
+	  {{tray_data.vendor}}
+	  <br/>
+	  {{tray_data.name}}
       {% else %}
       Empty
       {% endif %}
     </div>
 
     {% if tray_data.tray_type %}
+	{% if tray_data.tray_color is iterable and tray_data.tray_color is not string%}
+		<!-- Badge with Dynamic Colors -->
+		{% if tray_data.tray_color_orientation == "coaxial" %}
+		<div class="spool-icon horizontal">
+		{% else %}
+		<div class="spool-icon vertical">
+		{% endif %}
+		
+		{% for color in tray_data.tray_color %}
+			<div style="background-color:#{{ color }}" title="#{{ color }}"></div>
+		{% endfor %}
+		</div>
+	{% else %}
     <!-- Badge with Dynamic Colors -->
     <span class="badge d-inline-block p-2"
           style="background-color: #{{ tray_data.tray_color }};
                      color: {% if color_is_dark(tray_data.tray_color) %}#FFFFFF{% else %}#000000{% endif %}">
                         #{{ tray_data.tray_color | upper }}
                     </span>
-
+	{% endif %}
+	<!-- Last used -->
+	<div class="mt-2">
+      Last used:
+      <span class="fw-bold">{{ tray_data.last_used }}</span>
+    </div>
     <!-- Remaining Percentage -->
     <div class="mt-2">
       Remaining:
@@ -46,18 +72,15 @@
   <div class="card-footer">
     {% if pick_tray %}
     <a class="btn btn-primary"
-       href="{{ url_for('tray_load', spool_id=current_spool['id'], tag_id=tag_id, ams=ams_id, tray=tray_id) }}">Pick
-      this tray</a>
+       href="{{ url_for('tray_load', spool_id=current_spool['id'], tag_id=tag_id, ams=ams_id, tray=tray_id) }}">Assign</a>
     {% endif %}
     {% if tray_data.issue %}
     <a class="btn btn-primary"
-       href="{{ url_for('issue', ams=ams_id, tray=tray_id) }}">Fix
-      this tray</a>
+       href="{{ url_for('issue', ams=ams_id, tray=tray_id) }}">Fix</a>
     {% endif %}
-    {% if not pick_tray and not tray_data.tray_type %}
+    {% if not pick_tray%}
     <a class="btn btn-primary"
-       href="{{ url_for('fill', ams=ams_id, tray=tray_id) }}">Fill
-      this tray</a>
+       href="{{ url_for('fill', ams=ams_id, tray=tray_id) }}">Fill</a>
     {% endif %}
   </div>
 </div>
