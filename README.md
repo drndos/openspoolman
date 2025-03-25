@@ -17,13 +17,21 @@ Everything works locally without cloud access, you can use scripts/init_bambulab
     <tbody>
         <tr>
             <td><b>Information about your AMS</b></td>
-            <td><b>Assign NFC tags to your spools in SpoolMan</b></td>
-            <td><b>Write the URL of the Spool detail to NFC tag directly from the browser</b></td>
+            <td><b>Fill tray directly from overview</b></td>
+            <td><b>Print history</b></td>
         </tr>
         <tr>
-            <td><img alt="Information about your AMS" src="docs/img/info.jpeg" width="250"/></td>
+            <td><img alt="Information about your AMS" src="docs/img/info.PNG" width="250"/></td>
+            <td><img alt="Fill tray directly from overview" src="docs/img/fill_tray.PNG" width="250"/></td>
+            <td><img alt="Print history" src="docs/img/print_history.PNG" width="250"/></td>
+        <tr>
+            <td><b>Assign NFC tags to your spools in SpoolMan</b></td>
+            <td><b>Write the URL of the Spool detail to NFC tag directly from the browser</b></td>
+            <td></td>
+        </tr>
             <td><img alt="Assign NFC tags to your spools in SpoolMan" src="docs/img/assign_nfc.jpeg" width="250"/></td>
             <td><img alt="NFC write success" src="docs/img/nfc_write_success.jpeg" width="250"/></td>
+            <td></td>
         </tr>
         <tr>
             <td colspan="2"><b>Bring Phone close to the NFC tag and open the spool detail</b></td>
@@ -48,12 +56,12 @@ Everything works locally without cloud access, you can use scripts/init_bambulab
 </table>
 
 ### What you need:
- - Android Phone with Chrome web browser or iPhone (manual process much more complicated)
- - Server to run OpenSpoolMan with https that is reachable from your Phone and can reach both SpoolMan and Bambu Lab printer on the network
+ - Android Phone with Chrome web browser or iPhone (manual process much more complicated if using NFC Tags)
+ - Server to run OpenSpoolMan with https (optional when not using NFC Tags) that is reachable from your Phone and can reach both SpoolMan and Bambu Lab printer on the network
  - Active Bambu Lab Account or PRINTER_ID and PRINTER_CODE on your printer
  - Bambu Lab printer https://eu.store.bambulab.com/collections/3d-printer
  - SpoolMan installed https://github.com/Donkie/Spoolman
- - NFC Tags https://eu.store.bambulab.com/en-sk/collections/nfc/products/nfc-tag-with-adhesive https://www.aliexpress.com/item/1005006332360160.html
+ - NFC Tags (optional) https://eu.store.bambulab.com/en-sk/collections/nfc/products/nfc-tag-with-adhesive https://www.aliexpress.com/item/1005006332360160.html
 
 ### How to setup:
  - Rename config.env.template to config.env or set environment properies and: 
@@ -75,10 +83,15 @@ Everything works locally without cloud access, you can use scripts/init_bambulab
  - Add your Manufacturers, Filaments and Spools to Spool Man (when adding filament you can try "Import from External" for faster workflow)
  - Open the server base url in browser on your mobile phone
  - Optionally add Bambu Lab RFIDs to extra tag on your Bambu Spools so they will be matching. You can get the tag id from logs or from browser in AMS info.
+
+ With NFC Tags:
  - For non Bambu Lab filaments click on the filament and click Write and hold empty NFC tag to your phone (allow NFC in popup if prompted)
  - Attach NFC tag to your filament
  - Load filament to your AMS by loading it and then putting your phone near NFC tag and allowing your phone to open the website
  - On the website pick the slot you put your filament in
+
+ Without NFC Tags:
+ - Click fill on the tray and select the desired spool
  - Done
 
 ### Deployment
@@ -96,9 +109,7 @@ This feature has currently following issues/drawbacks:
  - Spending on the start of the print
  - Not spending according to print process and spending full filament weight even if print fails
  - Don't know if it works with LAN mode, since it downloads the 3MF file from cloud
- - Doesn't work if you print from SD card
  - Not tested with multiple AMS systems
- - External spool spending not yet implemented
  - Not handling the mismatch between the SpoolMan and AMS (if you don't have the Active Tray information correct in spoolman it won't work properly)
 
 ### Notes:
@@ -108,18 +119,14 @@ This feature has currently following issues/drawbacks:
  - Filament remaining in AMS (I have only AMS lite, if you have AMS we can test together)
  - Filament spending based on printing
    - TODO: handle situation when the print doesn't finish
-   - TODO: what about locally run file?
    - TODO: test with multiple AMS
-   - TODO: filament usage in external spool
  - Code cleanup
  - Video showcase
  - Docker compose SSL
  - Logs
  - TODOs
  - Click to resolve issue - WIP
- - Better Tray naming
  - Reduce the amount of files in docker container
  - Cloud service for controlled redirect so you don't have to reconfigure NFC tags
- - Handle printer offline
  - QR codes
  - Add search to list of spools
