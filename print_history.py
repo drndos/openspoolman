@@ -90,16 +90,22 @@ def update_filament_spool(print_id: int, filament_id: int, spool_id: int) -> Non
     conn.close()
 
 
-def get_prints_with_filament():
+def get_prints_with_filament(limit: int | None = None, offset: int | None = None):
     """
-    Retrieves all print jobs along with their associated filament usage, grouped by print job.
-    Returns the result as a JSON-serializable list.
+    Retrieves print jobs along with their associated filament usage, grouped by print job.
+
+    A total count is returned to support pagination.
     """
     conn = sqlite3.connect(db_config["db_path"])
     conn.row_factory = sqlite3.Row  # Enable column name access
+
+    count_cursor = conn.cursor()
+    count_cursor.execute("SELECT COUNT(*) FROM prints")
+    total_count = count_cursor.fetchone()[0]
+
     cursor = conn.cursor()
-    cursor.execute('''
-        SELECT p.id AS id, p.print_date AS print_date, p.file_name AS file_name, 
+    query = '''
+        SELECT p.id AS id, p.print_date AS print_date, p.file_name AS file_name,
                p.print_type AS print_type, p.image_file AS image_file,
                (
                    SELECT json_group_array(json_object(
@@ -112,10 +118,19 @@ def get_prints_with_filament():
                ) AS filament_info
         FROM prints p
         ORDER BY p.print_date DESC
-    ''')
+    '''
+    params: list[int] = []
+    if limit is not None:
+        query += " LIMIT ?"
+        params.append(limit)
+        if offset is not None:
+            query += " OFFSET ?"
+            params.append(offset)
+
+    cursor.execute(query, params)
     prints = [dict(row) for row in cursor.fetchall()]
     conn.close()
-    return prints
+    return prints, total_count
 
 def get_prints_by_spool(spool_id: int):
     """

@@ -2,6 +2,15 @@
 
 {% block content %}
 <h1>Solve issue</h1>
+{% if tray_data and tray_data.mismatch %}
+<div class="alert alert-warning d-flex align-items-start" role="alert">
+  <i class="bi bi-exclamation-triangle-fill text-danger me-2 fs-4"></i>
+  <div>
+    <div class="fw-semibold">AMS filament type mismatch detected</div>
+    <div>The AMS reports {{ tray_data.tray_type }}{% if tray_data.tray_sub_brands %} ({{ tray_data.tray_sub_brands }}){% endif %}, but the assigned spool is {{ active_spool.filament.vendor.name }} {{ active_spool.filament.name }}{% if active_spool.filament.material %} ({{ active_spool.filament.material }}{% if tray_data.spool_sub_brand %}, {{ tray_data.spool_sub_brand }}{% endif %}){% endif %}. Update the tray or select a matching spool below.</div>
+  </div>
+</div>
+{% endif %}
 {% with current_spool=active_spool %} {% include 'fragments/spool_details.html' %} {% endwith %}
 
 

@@ -1,3 +1,6 @@
+{% set materials = materials or [] %}
+{% set selected_materials = selected_materials or [] %}
+
 <!-- Empty State -->
 {% if spools|length == 0 or not spools %}
 <div class="alert alert-info text-center" role="alert">
@@ -5,30 +8,51 @@
 </div>
 {% else %}
 
+{% if materials %}
+<div class="mb-3" data-material-filter-wrapper>
+  <div class="d-flex flex-wrap align-items-center gap-2">
+    {% for material in materials %}
+    <button type="button"
+            class="btn btn-sm {% if material in selected_materials %}btn-primary active{% else %}btn-outline-primary{% endif %}"
+            data-material-filter="{{ material }}">
+      {{ material }}
+    </button>
+    {% endfor %}
+    <button type="button"
+            id="clear-material-filter"
+            class="btn btn-sm {% if not selected_materials %}btn-primary active{% else %}btn-outline-secondary{% endif %}">
+      Show all
+    </button>
+  </div>
+  <input type="hidden" id="material-filter-state" value='{{ selected_materials|tojson }}'>
+</div>
+{% endif %}
+
 <!-- Spool List -->
-<div class="list-group">
+<div class="list-group" id="spool-list">
   {% for spool in spools %}
   <!-- Individual Spool Item -->
-	<div class="spool-container list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+        <div class="spool-container list-group-item list-group-item-action d-flex justify-content-between align-items-center"
+             data-material="{{ spool.filament.material }}">
     <!-- Left: Filament Color Badge -->
     <div class="me-3">
-		{% if "multi_color_hexes" in spool.filament and spool.filament.multi_color_hexes is iterable and spool.filament.multi_color_hexes is not string%}
-		<!-- Badge with Dynamic Colors -->
-			{% if spool.filament.multi_color_direction == "coaxial" %}
-			<div class="spool-icon horizontal small">
-			{% else %}
-			<div class="spool-icon vertical small">
-			{% endif %}
-			
-			{% for color in spool.filament.multi_color_hexes %}
-				<div style="background-color:#{{ color }}" title="#{{ color }}"></div>
-			{% endfor %}
-		</div>
-		{% else %}
-		<span class="badge d-inline-block"
+                {% if "multi_color_hexes" in spool.filament and spool.filament.multi_color_hexes is iterable and spool.filament.multi_color_hexes is not string%}
+                <!-- Badge with Dynamic Colors -->
+                        {% if spool.filament.multi_color_direction == "coaxial" %}
+                        <div class="spool-icon horizontal small">
+                        {% else %}
+                        <div class="spool-icon vertical small">
+                        {% endif %}
+
+                        {% for color in spool.filament.multi_color_hexes %}
+                                <div style="background-color:#{{ color }}" title="#{{ color }}"></div>
+                        {% endfor %}
+                </div>
+                {% else %}
+                <span class="badge d-inline-block"
               style="background-color: #{{ spool.filament.color_hex }}; width: 20px; height: 50px;">
         </span>
-		{% endif %}
+                {% endif %}
     </div>
 
     <!-- Middle: Filament Details -->
@@ -43,45 +67,133 @@
       <small class="text-muted">{{ spool.filament.name }} - {{ spool.remaining_weight|round(0)|int }} g left</small>
     </div>
 
-  {% if action_fill or action_assign %}
-	<a href="{{ url_for('spool_info', spool_id=spool.id) }}">
-	  <span class="badge bg-primary rounded-pill">
-      <i class="bi bi-info-circle"></i> Spool info
-    </span>
-	</a>
-  {% endif %}
+  <div class="spool-actions d-flex flex-column flex-sm-row align-items-start align-items-sm-center gap-2 ms-sm-3">
+    {% if action_fill or action_assign %}
+    <a href="{{ url_for('spool_info', spool_id=spool.id) }}" class="spool-action-link">
+      <span class="badge bg-primary rounded-pill">
+        <i class="bi bi-info-circle"></i> Spool info
+      </span>
+    </a>
+    {% endif %}
 
-  {% if action_fill %}
-  <a href="{{ url_for('fill', spool_id=spool.id, ams=ams_id, tray=tray_id) }}">
-    <span class="badge bg-primary rounded-pill">
-      <i class="bi bi-plus-circle"></i> Fill
-    </span>
-  </a>
-  {% endif %}
+    {% if action_fill %}
+    <a href="{{ url_for('fill', spool_id=spool.id, ams=ams_id, tray=tray_id) }}" class="spool-action-link">
+      <span class="badge bg-primary rounded-pill">
+        <i class="bi bi-plus-circle"></i> Fill
+      </span>
+    </a>
+    {% endif %}
 
-  {% if action_assign %}
-  <a href="{{ url_for('write_tag', spool_id=spool.id) }}">
-  <!-- Action Icon -->
-  {% if spool.extra.get("tag") or spool.extra.get("tag") == "\"\"" %}
-    <span class="badge bg-secondary rounded-pill">
-      <i class="bi bi-plus-circle"></i> Reassign
-    </span>
-  {% else %}
-    <span class="badge bg-primary rounded-pill">
-      <i class="bi bi-plus-circle"></i> Assign
-    </span>
-  {% endif %}
-  </a>
-  {% endif %}
+    {% if action_assign %}
+    <a href="{{ url_for('write_tag', spool_id=spool.id) }}" class="spool-action-link">
+    <!-- Action Icon -->
+    {% if spool.extra.get("tag") or spool.extra.get("tag") == "\"\"" %}
+      <span class="badge bg-secondary rounded-pill">
+        <i class="bi bi-plus-circle"></i> Reassign
+      </span>
+    {% else %}
+      <span class="badge bg-primary rounded-pill">
+        <i class="bi bi-plus-circle"></i> Assign
+      </span>
+    {% endif %}
+    </a>
+    {% endif %}
 
-  {% if action_assign_print %}
-  <a href="{{ url_for('print_history', print_id=print_id, ams_slot=ams_slot, spool_id=spool.id, _anchor='print_' + print_id) }}">
-    <span class="badge bg-primary rounded-pill">
-      <i class="bi bi-plus-circle"></i> Assign
-    </span>
-  </a>
-  {% endif %}
+    {% if action_assign_print %}
+    <a href="{{ url_for('print_history', print_id=print_id, ams_slot=ams_slot, spool_id=spool.id, old_spool_id=old_spool_id,_anchor='print_' + print_id) }}" class="spool-action-link">
+      <span class="badge bg-primary rounded-pill">
+        <i class="bi bi-plus-circle"></i> Assign
+      </span>
+    </a>
+    {% endif %}
+  </div>
   </div>
   {% endfor %}
 </div>
 {% endif %}
+
+<style>
+#spool-list .spool-container.first-visible {
+  border-top-width: 1px !important;
+}
+</style>
+
+<script>
+(() => {
+  const spoolList = document.getElementById('spool-list');
+
+  if (!spoolList) {
+    return;
+  }
+
+  const filterWrapper = document.querySelector('[data-material-filter-wrapper]');
+  const filterButtons = filterWrapper ? filterWrapper.querySelectorAll('[data-material-filter]') : [];
+  const clearButton = filterWrapper ? document.getElementById('clear-material-filter') : null;
+  const stateInput = document.getElementById('material-filter-state');
+  const selected = new Set();
+
+  if (stateInput && stateInput.value) {
+    try {
+      JSON.parse(stateInput.value).forEach((material) => selected.add(material));
+    } catch (error) {
+      console.warn('Failed to parse selected materials', error);
+    }
+  }
+
+  const applyFilter = () => {
+    const items = spoolList.querySelectorAll('.spool-container');
+
+    items.forEach((item) => {
+      const material = item.dataset.material;
+      const isVisible = selected.size === 0 || selected.has(material);
+      item.classList.toggle('d-none', !isVisible);
+      item.classList.remove('first-visible');
+    });
+
+    const visibleItems = Array.from(items).filter((item) => !item.classList.contains('d-none'));
+
+    if (visibleItems.length > 0) {
+      visibleItems[0].classList.add('first-visible');
+    }
+
+    filterButtons.forEach((button) => {
+      const material = button.dataset.materialFilter;
+      const isActive = selected.has(material);
+
+      button.classList.toggle('btn-primary', isActive);
+      button.classList.toggle('btn-outline-primary', !isActive);
+      button.classList.toggle('active', isActive);
+    });
+
+    if (clearButton) {
+      const clearActive = selected.size === 0;
+      clearButton.classList.toggle('btn-primary', clearActive);
+      clearButton.classList.toggle('btn-outline-secondary', !clearActive);
+      clearButton.classList.toggle('active', clearActive);
+    }
+  };
+
+  filterButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+      const material = button.dataset.materialFilter;
+
+      if (selected.has(material)) {
+        selected.delete(material);
+      } else {
+        selected.add(material);
+      }
+
+      applyFilter();
+    });
+  });
+
+  if (clearButton) {
+    clearButton.addEventListener('click', () => {
+      selected.clear();
+      applyFilter();
+    });
+  }
+
+  applyFilter();
+})();
+</script>

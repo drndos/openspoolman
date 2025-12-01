@@ -132,3 +132,5 @@ cython_debug/
 .idea/
 
 config.env
+static/prints/
+data/

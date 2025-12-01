@@ -59,31 +59,37 @@
                             <div class="card-body">
                                 {% if filament['spool'] %}
                                     <a href="{{ url_for('spool_info', spool_id=filament['spool'].id) }}" class="nav-link link-body-emphasis">
-                                        <div class="filament-info">
-                                            <div class="spool-icon vertical small">
-                                                {% if "multi_color_hexes" in filament['spool'].filament and filament['spool'].filament.multi_color_hexes is iterable and filament['spool'].filament.multi_color_hexes is not string%}
-                                                <!-- Badge with Dynamic Colors -->
-                                                    {% if filament['spool'].filament.multi_color_direction == "coaxial" %}
-                                                    <div class="spool-icon horizontal small">
-                                                    {% else %}
-                                                    <div class="spool-icon vertical small">
-                                                    {% endif %}
-                                                    
-                                                    {% for color in filament['spool'].filament.multi_color_hexes %}
-                                                        <div style="background-color:#{{ color }}" title="#{{ color }}"></div>
-                                                    {% endfor %}
-                                                    </div>
+                                        <div class="filament-info d-flex justify-content-between align-items-center">
+                                        <div class="d-flex">
+                                            <div class="spool-icon vertical small me-2">
+                                            {% if "multi_color_hexes" in filament['spool'].filament and filament['spool'].filament.multi_color_hexes is iterable and filament['spool'].filament.multi_color_hexes is not string %}
+                                                {% if filament['spool'].filament.multi_color_direction == "coaxial" %}
+                                                <div class="spool-icon horizontal small">
                                                 {% else %}
+                                                <div class="spool-icon vertical small">
+                                                {% endif %}
+                                                {% for color in filament['spool'].filament.multi_color_hexes %}
+                                                    <div style="background-color:#{{ color }}" title="#{{ color }}"></div>
+                                                {% endfor %}
+                                                </div>
+                                            {% else %}
                                                 <span class="badge d-inline-block"
                                                     style="background-color: #{{ filament['spool'].filament.color_hex }}; width: 20px; height: 50px;">
                                                 </span>
-                                                {% endif %}
+                                            {% endif %}
                                             </div>
+
                                             <div class="spool-details">
-                                                <h6>#{{ filament['spool'].id }} - {{ filament['spool'].filament.vendor.name }} - {{ filament['spool'].filament.material }}</h6>
-                                                <small>{{ filament['spool'].filament.name }} - {{ filament['grams_used'] }}g - {{ '%.2f' | format(filament['cost']|float) }} {{currencysymbol}}</small>
+                                            <h6>#{{ filament['spool'].id }} – {{ filament['spool'].filament.vendor.name }} – {{ filament['spool'].filament.material }}</h6>
+                                            <small>{{ filament['spool'].filament.name }} – {{ filament['grams_used'] }}g – {{ '%.2f' | format(filament['cost']|float) }} {{currencysymbol}}</small>
                                             </div>
-                                        </div> 
+                                        </div>
+
+                                        <!-- Edit Button rechts -->
+                                        <a href="{{ url_for('print_select_spool', ams_slot=filament['ams_slot'], print_id=print['id'], old_spool_id=filament['spool'].id, change_spool=true )}}" class="btn btn-sm btn-outline-primary ms-3">
+                                            <i class="bi bi-pencil"></i>
+                                        </a>
+                                        </div>
                                     </a>
                                 {% else %}
                                     <div class="spool-info">

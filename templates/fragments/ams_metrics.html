@@ -1,0 +1,32 @@
+{% macro humidity_display(ams) %}
+  {% if ams.temp != "0.0" %}
+    {% set humidity_level = [ams.humidity|int, 5]|min %}
+    {% set humidity_level = [humidity_level, 1]|max %}
+    {% set fill_pct = humidity_level * 20 %}
+    {% set clip_id = 'humidity-clip-' ~ ams.id %}
+    {% set show_raw = ams.humidity_raw is defined and ams.humidity_raw|int != 0 %}
+    <span class="text-muted small d-flex align-items-center gap-2">
+      <span class="d-flex align-items-center gap-1 ams-humidity-display">
+        <span class="text-body-secondary">Humidity</span>
+        {% if show_raw %}
+          <span class="fw-semibold">{{ ams.humidity_raw }}%</span>
+        {% else %}
+          <span class="humidity-droplet-wrapper">
+            <svg class="humidity-droplet" viewBox="-0.5 -0.5 17 17" aria-hidden="true" focusable="false">
+              <defs>
+                <clipPath id="{{ clip_id }}">
+                  <path d="M8 16a6 6 0 0 0 6-6c0-1.655-1.122-2.904-2.432-4.362C10.254 4.176 8.75 2.503 8 0c0 0-6 5.686-6 10a6 6 0 0 0 6 6M6.646 4.646l.708.708c-.29.29-1.128 1.311-1.907 2.87l-.894-.448c.82-1.641 1.717-2.753 2.093-3.13" />
+                </clipPath>
+              </defs>
+              <rect width="100%" height="100%" class="droplet-base" clip-path="url(#{{ clip_id }})" />
+              <rect width="100%" height="{{ fill_pct }}%" y="{{ 100 - fill_pct }}%" class="droplet-fill" clip-path="url(#{{ clip_id }})" />
+              <path class="droplet-outline" d="M8 16a6 6 0 0 0 6-6c0-1.655-1.122-2.904-2.432-4.362C10.254 4.176 8.75 2.503 8 0c0 0-6 5.686-6 10a6 6 0 0 0 6 6" />
+            </svg>
+            <span class="humidity-level-number">{{ humidity_level }}</span>
+          </span>
+        {% endif %}
+      </span>
+      <span>Temp: {{ ams.temp }}°C</span>
+    </span>
+  {% endif %}
+{% endmacro %}

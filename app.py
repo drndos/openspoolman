@@ -1,4 +1,5 @@
 import json
+import math
 import traceback
 import uuid
 
@@ -32,15 +33,23 @@ def issue():
     return render_template('error.html', exception="Missing AMS ID, or Tray ID.")
 
   fix_ams = None
+  tray_data = None
 
   spool_list = fetchSpools()
   last_ams_config = getLastAMSConfig()
   if ams_id == EXTERNAL_SPOOL_AMS_ID:
     fix_ams = last_ams_config.get("vt_tray", {})
+    tray_data = fix_ams
   else:
     for ams in last_ams_config.get("ams", []):
-      if ams["id"] == ams_id:
+      if str(ams["id"]) == str(ams_id):
         fix_ams = ams
+        break
+
+  if fix_ams:
+    for tray in fix_ams.get("tray", []):
+      if str(tray["id"]) == str(tray_id):
+        tray_data = tray
         break
 
   active_spool = None
@@ -49,13 +58,16 @@ def issue():
       active_spool = spool
       break
 
+  if tray_data:
+    augmentTrayDataWithSpoolMan(spool_list, tray_data, trayUid(ams_id, tray_id))
+
   #TODO: Determine issue
   #New bambulab spool
   #Tray empty, but spoolman has record
   #Extra tag mismatch?
   #COLor/type mismatch
 
-  return render_template('issue.html', fix_ams=fix_ams, active_spool=active_spool)
+  return render_template('issue.html', fix_ams=fix_ams, tray_data=tray_data, ams_id=ams_id, tray_id=tray_id, active_spool=active_spool)
 
 @app.route("/fill")
 def fill():
@@ -75,8 +87,32 @@ def fill():
     return redirect(url_for('home', success_message=f"Updated Spool ID {spool_id} to AMS {ams_id}, Tray {tray_id}."))
   else:
     spools = fetchSpools()
-        
-    return render_template('fill.html', spools=spools, ams_id=ams_id, tray_id=tray_id)
+
+    materials = extract_materials(spools)
+    selected_materials = []
+
+    try:
+      last_ams_config = getLastAMSConfig()
+      default_material = None
+
+      if ams_id == EXTERNAL_SPOOL_AMS_ID:
+        default_material = last_ams_config.get("vt_tray", {}).get("tray_type")
+      else:
+        for ams in last_ams_config.get("ams", []):
+          if str(ams.get("id")) != str(ams_id):
+            continue
+
+          for tray in ams.get("tray", []):
+            if str(tray.get("id")) == str(tray_id):
+              default_material = tray.get("tray_type")
+              break
+
+      if default_material and default_material in materials:
+        selected_materials.append(default_material)
+    except Exception:
+      pass
+
+    return render_template('fill.html', spools=spools, ams_id=ams_id, tray_id=tray_id, materials=materials, selected_materials=selected_materials)
 
 @app.route("/spool_info")
 def spool_info():
@@ -90,7 +126,7 @@ def spool_info():
     ams_data = last_ams_config.get("ams", [])
     vt_tray_data = last_ams_config.get("vt_tray", {})
     spool_list = fetchSpools()
-    
+
     issue = False
     #TODO: Fix issue when external spool info is reset via bambulab interface
     augmentTrayDataWithSpoolMan(spool_list, vt_tray_data, trayUid(EXTERNAL_SPOOL_AMS_ID, EXTERNAL_SPOOL_ID))
@@ -122,7 +158,7 @@ def spool_info():
 
     if current_spool:
       # TODO: missing current_spool
-      return render_template('spool_info.html', tag_id=tag_id, current_spool=current_spool, ams_data=ams_data, vt_tray_data=vt_tray_data)
+      return render_template('spool_info.html', tag_id=tag_id, current_spool=current_spool, ams_data=ams_data, vt_tray_data=vt_tray_data, issue=issue)
     else:
       return render_template('error.html', exception="Spool not found")
   except Exception as e:
@@ -237,15 +273,44 @@ def sort_spools(spools):
   # Sort with the custom condition: False values come first
   return sorted(spools, key=lambda spool: bool(condition(spool)))
 
+
+def extract_materials(spools):
+  materials = set()
+
+  for spool in spools:
+    filament = None
+
+    if isinstance(spool, dict):
+      filament = spool.get("filament")
+    else:
+      filament = getattr(spool, "filament", None)
+
+    if isinstance(filament, dict):
+      material = filament.get("material")
+    else:
+      material = getattr(filament, "material", None)
+
+    if material:
+      materials.add(material)
+
+  return sorted(materials)
+
 @app.route("/assign_tag")
 def assign_tag():
   if not isMqttClientConnected():
     return render_template('error.html', exception="MQTT is disconnected. Is the printer online?")
-    
+
   try:
     spools = sort_spools(fetchSpools())
 
-    return render_template('assign_tag.html', spools=spools)
+    materials = extract_materials(spools)
+    selected_materials = []
+    requested_material = request.args.get("material")
+
+    if requested_material and requested_material in materials:
+      selected_materials.append(requested_material)
+
+    return render_template('assign_tag.html', spools=spools, materials=materials, selected_materials=selected_materials)
   except Exception as e:
     traceback.print_exc()
     return render_template('error.html', exception=str(e))
@@ -276,22 +341,32 @@ def health():
 def print_history():
   spoolman_settings = getSettings()
 
+  try:
+    page = max(int(request.args.get("page", 1)), 1)
+  except ValueError:
+    page = 1
+  per_page = 50
+  offset = max((page - 1) * per_page, 0)
+
   ams_slot = request.args.get("ams_slot")
   print_id = request.args.get("print_id")
   spool_id = request.args.get("spool_id")
   old_spool_id = request.args.get("old_spool_id")
+
+  if not old_spool_id:
+    old_spool_id = -1
 
   if all([ams_slot, print_id, spool_id]):
     filament = get_filament_for_slot(print_id, ams_slot)
     update_filament_spool(print_id, ams_slot, spool_id)
 
     if(filament["spool_id"] != int(spool_id) and (not old_spool_id or (old_spool_id and filament["spool_id"] == int(old_spool_id)))):
-      if old_spool_id:
+      if old_spool_id and int(old_spool_id) != -1:
         consumeSpool(old_spool_id, filament["grams_used"] * -1)
         
       consumeSpool(spool_id, filament["grams_used"])
 
-  prints = get_prints_with_filament()
+  prints, total_prints = get_prints_with_filament(limit=per_page, offset=offset)
 
   spool_list = fetchSpools()
 
@@ -308,7 +383,16 @@ def print_history():
             print["total_cost"] += filament["cost"]
             break
   
-  return render_template('print_history.html', prints=prints, currencysymbol=spoolman_settings["currency_symbol"])
+  total_pages = max(1, math.ceil(total_prints / per_page))
+
+  return render_template(
+    'print_history.html',
+    prints=prints,
+    currencysymbol=spoolman_settings["currency_symbol"],
+    page=page,
+    total_pages=total_pages,
+    per_page=per_page,
+  )
 
 @app.route("/print_select_spool")
 def print_select_spool():
@@ -316,13 +400,41 @@ def print_select_spool():
   try:
     ams_slot = request.args.get("ams_slot")
     print_id = request.args.get("print_id")
+    old_spool_id = request.args.get("old_spool_id")
+    
+    change_spool = request.args.get("change_spool", "false").lower() == "true"
+    
+    if not old_spool_id:
+      old_spool_id = -1
 
     if not all([ams_slot, print_id]):
       return render_template('error.html', exception="Missing spool ID or print ID.")
 
     spools = fetchSpools()
-        
-    return render_template('print_select_spool.html', spools=spools, ams_slot=ams_slot, print_id=print_id)
+
+    materials = extract_materials(spools)
+    selected_materials = []
+
+    filament = get_filament_for_slot(print_id, ams_slot)
+
+    try:
+      filament_material = filament["filament_type"] if filament else None
+
+      if filament_material and filament_material in materials:
+        selected_materials.append(filament_material)
+    except Exception:
+      pass
+
+    return render_template(
+      'print_select_spool.html',
+      spools=spools,
+      ams_slot=ams_slot,
+      print_id=print_id,
+      old_spool_id=old_spool_id,
+      change_spool=change_spool,
+      materials=materials,
+      selected_materials=selected_materials,
+    )
   except Exception as e:
     traceback.print_exc()
     return render_template('error.html', exception=str(e))

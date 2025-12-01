@@ -1,4 +1,5 @@
 import os
+import math
 from config import PRINTER_ID, EXTERNAL_SPOOL_AMS_ID, EXTERNAL_SPOOL_ID
 from datetime import datetime
 from zoneinfo import ZoneInfo
@@ -9,6 +10,8 @@ from spoolman_client import consumeSpool, patchExtraTags, fetchSpoolList, fetchS
 
 SPOOLS = {}
 SPOOLMAN_SETTINGS = {}
+
+COLOR_DISTANCE_TOLERANCE = 80
 
 currency_symbols = {
     "AED": "د.إ", "AFN": "؋", "ALL": "Lek", "AMD": "դր.", "ANG": "ƒ", "AOA": "Kz", 
@@ -49,15 +52,52 @@ def trayUid(ams_id, tray_id):
 def getAMSFromTray(n):
     return n // 4
 
+
+def normalize_color_hex(color_hex):
+  if not color_hex or isinstance(color_hex, list):
+    return ""
+
+  color = color_hex.strip().upper()
+  if color.startswith("#"):
+    color = color[1:]
+
+  if len(color) == 8:
+    color = color[:6]
+
+  if len(color) < 6:
+    return ""
+
+  return color[:6]
+
+
+def color_distance(color1, color2):
+  c1 = normalize_color_hex(color1)
+  c2 = normalize_color_hex(color2)
+
+  if not c1 or not c2:
+    return None
+
+  r1, g1, b1 = (int(c1[i:i+2], 16) for i in (0, 2, 4))
+  r2, g2, b2 = (int(c2[i:i+2], 16) for i in (0, 2, 4))
+
+  return math.sqrt((r1 - r2) ** 2 + (g1 - g2) ** 2 + (b1 - b2) ** 2)
+
 def augmentTrayDataWithSpoolMan(spool_list, tray_data, tray_id):
   tray_data["matched"] = False
+  tray_data["mismatch"] = False
+  tray_data["issue"] = False
+  tray_data["color_mismatch"] = False
+  tray_data["color_mismatch_message"] = ""
+
   for spool in spool_list:
     if spool.get("extra") and spool["extra"].get("active_tray") and spool["extra"]["active_tray"] == json.dumps(tray_id):
-      #TODO: check for mismatch
       tray_data["name"] = spool["filament"]["name"]
       tray_data["vendor"] = spool["filament"]["vendor"]["name"]
+      tray_data["spool_material"] = spool["filament"].get("material", "")
+      tray_data["spool_sub_brand"] = (spool["filament"].get("extra", {}).get("type") or "").replace('"', '').strip()
       tray_data["remaining_weight"] = spool["remaining_weight"]
-      
+
+
       if "last_used" in spool:
         try:
             dt = datetime.strptime(spool["last_used"], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=ZoneInfo("UTC"))
@@ -66,21 +106,44 @@ def augmentTrayDataWithSpoolMan(spool_list, tray_data, tray_id):
 
         local_time = dt.astimezone()
         tray_data["last_used"] = local_time.strftime("%d.%m.%Y %H:%M:%S")
-
       else:
           tray_data["last_used"] = "-"
-          
+
       if "multi_color_hexes" in spool["filament"]:
-        tray_data["tray_color"] = spool["filament"]["multi_color_hexes"]
-        tray_data["tray_color_orientation"] = spool["filament"]["multi_color_direction"]
-        
+        tray_data["spool_color"] = spool["filament"]["multi_color_hexes"]
+        tray_data["spool_color_orientation"] = spool["filament"].get("multi_color_direction")
+      else:
+        tray_data["spool_color"] = normalize_color_hex(spool["filament"].get("color_hex") or "")
+        tray_data.pop('spool_color_orientation', None)
+
+      tray_material = (tray_data.get("tray_type") or "").strip().lower()
+      spool_material = (spool["filament"].get("material") or "").strip().lower()
+      material_mismatch = bool(tray_material and spool_material and tray_material != spool_material)
+
+      tray_sub_brand = (tray_data.get("tray_sub_brands") or "").replace("Basic","").strip().lower()
+      filament_sub_brand =  tray_data["spool_sub_brand"].replace("Basic", "").strip().lower()
+
+      if tray_sub_brand:
+        filament_sub_brand = (spool_material + " " + filament_sub_brand).strip()
+
+      sub_brand_mismatch = bool(tray_sub_brand and tray_sub_brand != filament_sub_brand)
+
+      tray_data["tray_sub_brand"] = tray_data.get("tray_sub_brands", "").replace(tray_data.get("tray_type", ""), '').replace("Basic","").strip()
+      tray_data["spool_sub_brand"] = tray_data["spool_sub_brand"].replace("Basic", '').strip()
+      tray_data["mismatch"] = material_mismatch or sub_brand_mismatch
+      tray_data["issue"] = tray_data["mismatch"]
       tray_data["matched"] = True
+
+      if "multi_color_hexes" not in spool["filament"]:
+        color_difference = color_distance(tray_data.get("tray_color"), tray_data["spool_color"] )
+        if  color_difference is not None and color_difference > COLOR_DISTANCE_TOLERANCE:
+          tray_data["color_mismatch"] = True
+          tray_data["color_mismatch_message"] = "Colors are not similar."
+
       break
 
   if tray_data.get("tray_type") and tray_data["tray_type"] != "" and tray_data["matched"] == False:
     tray_data["issue"] = True
-  else:
-    tray_data["issue"] = False
 
 def spendFilaments(printdata):
   if printdata["ams_mapping"]:

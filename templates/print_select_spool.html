@@ -2,6 +2,16 @@
 
 {% block content %}
 <!-- Page Title -->
+
+{% if change_spool %}
+<h1 class="mb-4 text-center">Change spool</h1>
+<div class="text-center mb-4">
+  <a href="{{ url_for('print_history', print_id=print_id, ams_slot=ams_slot, spool_id='-1',old_spool_id=old_spool_id, _anchor='print_' + print_id) }}" class="btn btn-danger">
+    <i class="bi bi-x-circle me-2"></i>Remove Assignment
+  </a>
+</div>
+{% else %}
 <h1 class="mb-4 text-center">Assign spool to print</h1>
-{% with action_assign_print=True %}{% include 'fragments/list_spools.html' %}{% endwith %}
+{% endif %}
+{% with action_assign_print=True, materials=materials, selected_materials=selected_materials %}{% include 'fragments/list_spools.html' %}{% endwith %}
 {% endblock %}

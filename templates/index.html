@@ -1,18 +1,8 @@
 {% extends 'base.html' %}
 
-{% block content %}
-{% if issue %}
-<div class="card border-warning shadow-sm mb-4">
-  <div class="card-header bg-warning text-dark fw-bold">
-    Warning
-  </div>
-  <div class="card-body">
-    <h5 class="card-title">There is a mismatch between printer and SpoolMan</h5>
-    <p class="card-text">Fix issue by clicking "Fix this tray" on tray with <i class="bi bi-exclamation-circle text-danger me-2"></i></p>
-  </div>
-</div>
-{% endif %}
+{% from 'fragments/ams_metrics.html' import humidity_display %}
 
+{% block content %}
 <!-- AMS and External Spool Row -->
 <div class="row">
   <!-- External Spool -->
@@ -24,13 +14,11 @@
 
   <!-- AMS Cards -->
   {% for ams in ams_data %}
-  <div class="col-lg-6 mb-4 text-center">
+  <div class="col-lg-6 mb-4 text-center ams-card">
     <div class="card shadow-sm">
       <div class="card-header d-flex justify-content-between align-items-center">
         <h5 class="mb-0">AMS{% if ams_data|length > 1 %} {{ ams.id|int +1 }} {% endif %}</h5>
-        {% if ams.temp != "0.0" %}
-        <span class="text-muted small">Humidity: {{ ams.humidity_raw }}%, Temp: {{ ams.temp }}°C</span>
-        {% endif %}
+        {{ humidity_display(ams) }}
       </div>
       <div class="card-body">
         <div class="row">

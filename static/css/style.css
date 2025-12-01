@@ -1,5 +1,42 @@
+.page-shell {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+main.container {
+    flex: 1 0 auto;
+    min-height: 60vh;
+}
+
 .spool-container {
     gap: 10px;
+}
+
+#spool-list .spool-container {
+    padding: 0.75rem;
+}
+
+#spool-list {
+    max-height: none;
+    overflow: visible;
+}
+
+#spool-list h6 {
+    font-size: 1rem;
+    margin-bottom: 0.1rem;
+}
+
+#spool-list small {
+    font-size: 0.9rem;
+}
+
+#spool-list .spool-actions {
+    flex-shrink: 0;
+}
+
+#spool-list .spool-action-link {
+    text-decoration: none;
 }
 
 .spool-icon {
@@ -18,7 +55,7 @@
     width: 20px;
     margin: 0;
     height: 50px;
-} 
+}
 
 .spool-icon.large {
     width: 4em;
@@ -29,6 +66,25 @@
     flex: 1 1 0px;
     border-radius: 2px;
     border: #44444430 solid 2px
+}
+
+.tray-color-wrapper {
+    position: relative;
+    display: inline-block;
+}
+
+.tray-color-swatch {
+    width: 24px;
+    height: 24px;
+    display: inline-block;
+}
+
+.tray-color-warning {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    font-size: 0.9rem;
+    line-height: 1;
 }
 
 .spool-icon.vertical *:first-child {
@@ -50,6 +106,18 @@
     border-top-right-radius: 6px;
     border-bottom-right-radius: 6px
 }
+
+.ams-card .tray-card {
+    height: 100%;
+}
+
+.ams-card .tray-card .tray-empty {
+    height: 100%;
+    align-items: center;
+    display: flex;
+    justify-content: center;
+}
+
 
 .print-history {
     display: flex;
@@ -139,7 +207,7 @@
 @media (max-width: 768px) {
     .print-grid {
         grid-template-columns: 1fr;
-        grid-template-areas: 
+        grid-template-areas:
             "info"
             "filament"
             "image";
@@ -166,7 +234,7 @@
   @media (min-width: 576px) {
     .label-print-value {
       display: ruby;
-    }
+      }
     .label-print-inline {
       display: inline;
     }
@@ -174,3 +242,84 @@
       display: none;
     }
   }
+
+@media (max-width: 576px) {
+    #spool-list .spool-container {
+        padding: 0.5rem;
+    }
+
+    #spool-list h6 {
+        font-size: 0.95rem;
+    }
+
+    #spool-list small {
+        font-size: 0.8rem;
+    }
+
+    #spool-list .badge {
+        font-size: 0.8rem;
+    }
+
+    #spool-list .badge.d-inline-block {
+        width: 16px !important;
+        height: 40px !important;
+    }
+
+    .spool-icon.small {
+        width: 16px;
+        height: 40px;
+    }
+
+    #spool-list .spool-actions {
+        align-items: stretch;
+    }
+
+    #spool-list .spool-action-link {
+        width: 100%;
+    }
+}
+
+/* AMS humidity visualization */
+.ams-humidity-display {
+    gap: 0.35rem !important;
+}
+
+.humidity-droplet-wrapper {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+}
+
+.humidity-droplet {
+    width: 28px;
+    height: 28px;
+}
+
+.droplet-base {
+    fill: transparent;
+}
+
+.droplet-fill {
+    fill: var(--bs-info, #0dcaf0);
+    opacity: 0.8;
+}
+
+.droplet-outline {
+    fill: none;
+    stroke: #000;
+    stroke-width: 0.8;
+}
+
+.humidity-level-number {
+    position: absolute;
+    font-weight: 700;
+    font-size: 0.85rem;
+    color: var(--bs-body-color);
+    line-height: 1;
+    left: 50%;
+    top: 60%;
+    transform: translate(-50%, -50%);
+}

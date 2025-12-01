@@ -2,7 +2,7 @@
 <html lang="en" data-bs-theme="auto">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="initial-scale=1.2, shrink-to-fit=yes, user-scalable=no">
+  <meta name="viewport" content="initial-scale=0.8, shrink-to-fit=yes, user-scalable=no">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="OpenSpoolMan">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -23,7 +23,7 @@
     }
   </style>
 </head>
-<body>
+<body class="page-shell">
 <header class="p-1 mb-3 border-bottom">
   <div class="container">
     <div class="d-flex flex-wrap align-items-center justify-content-center justify-content-lg-start">
@@ -129,7 +129,7 @@
   </footer>
 </div>
 
-<script src="{{ url_for('static', filename='js/bootstrap.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/bootstrap.bundle.min.js') }}"></script>
 <script>
   ;(function () {
     const htmlElement = document.querySelector("html")
@@ -143,6 +143,44 @@
       updateTheme()
     }
   })()
+  document.addEventListener('DOMContentLoaded', function () {
+    const popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'))
+    popoverTriggerList.forEach(function (popoverTriggerEl) {
+      const popover = new bootstrap.Popover(popoverTriggerEl, {container: 'body', trigger: 'manual'})
+      const showPopover = () => popover.show()
+      const hidePopover = () => {
+        popover.hide()
+        popoverTriggerEl.classList.remove('popover-visible')
+      }
+      let touchActivated = false
+
+      popoverTriggerEl.addEventListener('mouseenter', showPopover)
+      popoverTriggerEl.addEventListener('mouseleave', hidePopover)
+      popoverTriggerEl.addEventListener('focus', showPopover)
+      popoverTriggerEl.addEventListener('blur', hidePopover)
+      popoverTriggerEl.addEventListener('click', function (event) {
+        if (touchActivated) {
+          touchActivated = false
+          return
+        }
+        event.preventDefault()
+        popoverTriggerEl.classList.toggle('popover-visible')
+        popoverTriggerEl.classList.contains('popover-visible') ? showPopover() : hidePopover()
+      })
+      popoverTriggerEl.addEventListener('touchstart', function (event) {
+        touchActivated = true
+        event.preventDefault()
+        popoverTriggerEl.classList.toggle('popover-visible')
+        popoverTriggerEl.classList.contains('popover-visible') ? showPopover() : hidePopover()
+      }, { passive: false })
+
+      document.addEventListener('click', function (event) {
+        if (!popoverTriggerEl.contains(event.target)) {
+          hidePopover()
+        }
+      })
+    })
+  })
 </script>
 </body>
 </html>

@@ -1,5 +1,7 @@
 {% extends 'base.html' %}
 
+{% from 'fragments/ams_metrics.html' import humidity_display %}
+
 {% block content %}
 {% include 'fragments/spool_details.html' %}
 
@@ -15,9 +17,7 @@
     <div class="card shadow-sm">
       <div class="card-header d-flex justify-content-between align-items-center">
         <h5 class="mb-0">AMS{% if ams_data|length > 1 %} {{ ams.id|int +1 }} {% endif %}</h5>
-		{% if ams.temp != "0.0" %}
-        <span class="text-muted small">Humidity: {{ ams.humidity }}%, Temp: {{ ams.temp }}°C</span>
-		{% endif %}
+        {{ humidity_display(ams) }}
       </div>
       <div class="card-body">
         <div class="row">

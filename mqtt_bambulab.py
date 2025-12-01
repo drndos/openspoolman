@@ -30,15 +30,29 @@ def getPrinterModel():
     model_code = PRINTER_ID[:3]
 
     model_map = {
-        "094": "H2D",
-        "00W": "X1",
-        "00M": "X1 Carbon",
-        "03W": "X1E",
-        "01S": "P1P",
-        "01P": "P1S",
-        "039": "A1",
-        "030": "A1 Mini"
+      # H2-Serie
+      "093": "H2S",
+      "094": "H2D",
+      "239": "H2D Pro",
+      "109": "H2C",
+
+      # X1-Serie
+      "00W": "X1",
+      "00M": "X1 Carbon",
+      "03W": "X1E",
+
+      # P1-Serie
+      "01S": "P1P",
+      "01P": "P1S",
+
+      # P2-Serie
+      "22E": "P2S",
+
+      # A1-Serie
+      "039": "A1",
+      "030": "A1 Mini"
     }
+
     model_name = model_map.get(model_code, f"Unknown model ({model_code})")
 
     numeric_tail = ''.join(filter(str.isdigit, PRINTER_ID))
@@ -312,4 +326,5 @@ def getMqttClient():
 
 def isMqttClientConnected():
   global MQTT_CLIENT_CONNECTED
+
   return MQTT_CLIENT_CONNECTED

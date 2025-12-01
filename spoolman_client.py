@@ -26,8 +26,8 @@ def fetchSpoolList():
   else:
     response = requests.get(f"{SPOOLMAN_API_URL}/spool")
     
-  print(response.status_code)
-  print(response.text)
+  #print(response.status_code)
+  #print(response.text)
   return response.json()
 
 def consumeSpool(spool_id, use_weight):

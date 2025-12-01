@@ -4,7 +4,7 @@ EXTERNAL_SPOOL_ID = 254 #  don't change
 
 
 BASE_URL = os.getenv('OPENSPOOLMAN_BASE_URL') # Where will this app be accessible
-PRINTER_ID = os.getenv('PRINTER_ID')  # Printer serial number - Run init_bambulab.py
+PRINTER_ID = (os.getenv('PRINTER_ID') or "").upper()  # Printer serial number - Run init_bambulab.py
 PRINTER_CODE = os.getenv('PRINTER_ACCESS_CODE')       # Printer access code - Run init_bambulab.py
 PRINTER_IP = os.getenv('PRINTER_IP')     # Printer local IP address - Check wireless on printer
 PRINTER_NAME = os.getenv('PRINTER_NAME')     # Printer name - Check wireless on printer

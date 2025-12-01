@@ -1,7 +1,11 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<h1>Fill slot</h1>
-<h2>AMS: {{ ams_id }}, Tray: {{ tray_id }}</h2>
-{% with action_fill=True %}{% include 'fragments/list_spools.html' %}{% endwith %}
+<h1>Fill tray</h1>
+{% if ams_id|int != EXTERNAL_SPOOL_AMS_ID %}
+  <h2 class="mb-4">AMS {{ ams_id|int + 1 }} - Tray {{ tray_id|int + 1 }}</h2>
+{% else %}
+  <h2 class="mb-4">External Spool</h2>
+{% endif %}
+{% with action_fill=True, materials=materials, selected_materials=selected_materials %}{% include 'fragments/list_spools.html' %}{% endwith %}
 {% endblock %}
