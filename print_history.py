@@ -14,6 +14,10 @@ def _default_db_path() -> Path:
     if env_path:
         return Path(env_path).expanduser().resolve()
 
+    #Support the old default database if it exists
+    if Path(__file__).resolve().parent / "data" / "3d_printer_logs.db" :
+        return Path(__file__).resolve().parent / "data" / "3d_printer_logs.db"
+
     return Path(__file__).resolve().parent / "data" / DEFAULT_DB_NAME
 
 
