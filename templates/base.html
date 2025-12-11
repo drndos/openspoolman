@@ -110,6 +110,12 @@
 });
   </script>
 <main class="container">
+  {% if not MQTT_CONNECTED %}
+  <div class="alert alert-warning alert-dismissible fade show" role="alert">
+    <strong>⚠️ Limited Functionality:</strong> Printer is offline. Some features may not be available. The application will automatically reconnect when the printer comes online.
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+  </div>
+  {% endif %}
   {% if success_message %}
   <div class="alert alert-success alert-dismissible fade show" role="alert">
     <strong>Success!</strong> {{ success_message }}

@@ -31,12 +31,12 @@ app = Flask(__name__)
 
 @app.context_processor
 def fronted_utilities():
-  return dict(SPOOLMAN_BASE_URL=SPOOLMAN_BASE_URL, AUTO_SPEND=AUTO_SPEND, color_is_dark=color_is_dark, BASE_URL=BASE_URL, EXTERNAL_SPOOL_AMS_ID=EXTERNAL_SPOOL_AMS_ID, EXTERNAL_SPOOL_ID=EXTERNAL_SPOOL_ID, PRINTER_MODEL=mqtt_bambulab.getPrinterModel(), PRINTER_NAME=PRINTER_NAME)
+  return dict(SPOOLMAN_BASE_URL=SPOOLMAN_BASE_URL, AUTO_SPEND=AUTO_SPEND, color_is_dark=color_is_dark, BASE_URL=BASE_URL, EXTERNAL_SPOOL_AMS_ID=EXTERNAL_SPOOL_AMS_ID, EXTERNAL_SPOOL_ID=EXTERNAL_SPOOL_ID, PRINTER_MODEL=mqtt_bambulab.getPrinterModel(), PRINTER_NAME=PRINTER_NAME, MQTT_CONNECTED=mqtt_bambulab.isMqttClientConnected())
 
 @app.route("/issue")
 def issue():
   if not mqtt_bambulab.isMqttClientConnected():
-    return render_template('error.html', exception="MQTT is disconnected. Is the printer online?")
+    return render_template('error.html', exception="Printer is offline. This page requires printer connection to display tray information.")
     
   ams_id = request.args.get("ams")
   tray_id = request.args.get("tray")
@@ -82,9 +82,6 @@ def issue():
 
 @app.route("/fill")
 def fill():
-  if not mqtt_bambulab.isMqttClientConnected():
-    return render_template('error.html', exception="MQTT is disconnected. Is the printer online?")
-    
   ams_id = request.args.get("ams")
   tray_id = request.args.get("tray")
   if not all([ams_id, tray_id]):
@@ -92,6 +89,10 @@ def fill():
 
   spool_id = request.args.get("spool_id")
   if spool_id:
+    # Setting a spool requires MQTT connection to send commands to printer
+    if not mqtt_bambulab.isMqttClientConnected():
+      return render_template('error.html', exception="Printer is offline. Cannot assign spool to tray. Please ensure the printer is online and try again.")
+    
     if READ_ONLY_MODE:
       return render_template('error.html', exception="Live read-only mode: assigning spools to trays is disabled.")
 
@@ -100,29 +101,31 @@ def fill():
     setActiveSpool(ams_id, tray_id, spool_data)
     return redirect(url_for('home', success_message=f"Updated Spool ID {spool_id} to AMS {ams_id}, Tray {tray_id}."))
   else:
+    # Viewing the fill page can work without MQTT
     spools = mqtt_bambulab.fetchSpools()
 
     materials = extract_materials(spools)
     selected_materials = []
 
     try:
-      last_ams_config = mqtt_bambulab.getLastAMSConfig()
-      default_material = None
+      if mqtt_bambulab.isMqttClientConnected():
+        last_ams_config = mqtt_bambulab.getLastAMSConfig()
+        default_material = None
 
-      if ams_id == EXTERNAL_SPOOL_AMS_ID:
-        default_material = last_ams_config.get("vt_tray", {}).get("tray_type")
-      else:
-        for ams in last_ams_config.get("ams", []):
-          if str(ams.get("id")) != str(ams_id):
-            continue
+        if ams_id == EXTERNAL_SPOOL_AMS_ID:
+          default_material = last_ams_config.get("vt_tray", {}).get("tray_type")
+        else:
+          for ams in last_ams_config.get("ams", []):
+            if str(ams.get("id")) != str(ams_id):
+              continue
 
-          for tray in ams.get("tray", []):
-            if str(tray.get("id")) == str(tray_id):
-              default_material = tray.get("tray_type")
-              break
+            for tray in ams.get("tray", []):
+              if str(tray.get("id")) == str(tray_id):
+                default_material = tray.get("tray_type")
+                break
 
-      if default_material and default_material in materials:
-        selected_materials.append(default_material)
+        if default_material and default_material in materials:
+          selected_materials.append(default_material)
     except Exception:
       pass
 
@@ -130,21 +133,26 @@ def fill():
 
 @app.route("/spool_info")
 def spool_info():
-  if not mqtt_bambulab.isMqttClientConnected():
-    return render_template('error.html', exception="MQTT is disconnected. Is the printer online?")
-
   try:
     tag_id = request.args.get("tag_id")
     spool_id = request.args.get("spool_id")
-    last_ams_config = mqtt_bambulab.getLastAMSConfig()
-    ams_data = last_ams_config.get("ams", [])
-    vt_tray_data = last_ams_config.get("vt_tray", {})
+    
+    # Get AMS config if available, otherwise use empty defaults
+    if mqtt_bambulab.isMqttClientConnected():
+      last_ams_config = mqtt_bambulab.getLastAMSConfig()
+      ams_data = last_ams_config.get("ams", [])
+      vt_tray_data = last_ams_config.get("vt_tray", {})
+    else:
+      ams_data = []
+      vt_tray_data = {}
+    
     spool_list = mqtt_bambulab.fetchSpools()
 
     issue = False
     #TODO: Fix issue when external spool info is reset via bambulab interface
-    augmentTrayDataWithSpoolMan(spool_list, vt_tray_data, trayUid(EXTERNAL_SPOOL_AMS_ID, EXTERNAL_SPOOL_ID))
-    issue |= vt_tray_data.get("issue", False)
+    if vt_tray_data:
+      augmentTrayDataWithSpoolMan(spool_list, vt_tray_data, trayUid(EXTERNAL_SPOOL_AMS_ID, EXTERNAL_SPOOL_ID))
+      issue |= vt_tray_data.get("issue", False)
 
     for ams in ams_data:
       for tray in ams["tray"]:
@@ -209,8 +217,9 @@ def spoolman_compatible_spool_info(spool_id):
 
 @app.route("/tray_load")
 def tray_load():
+  # This route sends commands to printer, so MQTT is required
   if not mqtt_bambulab.isMqttClientConnected():
-    return render_template('error.html', exception="MQTT is disconnected. Is the printer online?")
+    return render_template('error.html', exception="Printer is offline. Cannot assign spool to tray. Please ensure the printer is online and try again.")
   
   tag_id = request.args.get("tag_id")
   ams_id = request.args.get("ams")
@@ -283,25 +292,29 @@ def setActiveSpool(ams_id, tray_id, spool_data):
 
 @app.route("/")
 def home():
-  if not mqtt_bambulab.isMqttClientConnected():
-    return render_template('error.html', exception="MQTT is disconnected. Is the printer online?")
-
   try:
-    last_ams_config = mqtt_bambulab.getLastAMSConfig()
-    ams_data = last_ams_config.get("ams", [])
-    vt_tray_data = last_ams_config.get("vt_tray", {})
+    # Get AMS config if available, otherwise use empty defaults
+    if mqtt_bambulab.isMqttClientConnected():
+      last_ams_config = mqtt_bambulab.getLastAMSConfig()
+      ams_data = last_ams_config.get("ams", [])
+      vt_tray_data = last_ams_config.get("vt_tray", {})
+    else:
+      ams_data = []
+      vt_tray_data = {}
+    
     spool_list = mqtt_bambulab.fetchSpools()
     success_message = request.args.get("success_message")
     
     issue = False
     #TODO: Fix issue when external spool info is reset via bambulab interface
-    augmentTrayDataWithSpoolMan(spool_list, vt_tray_data, trayUid(EXTERNAL_SPOOL_AMS_ID, EXTERNAL_SPOOL_ID))
-    issue |= vt_tray_data["issue"]
+    if vt_tray_data:
+      augmentTrayDataWithSpoolMan(spool_list, vt_tray_data, trayUid(EXTERNAL_SPOOL_AMS_ID, EXTERNAL_SPOOL_ID))
+      issue |= vt_tray_data.get("issue", False)
 
     for ams in ams_data:
       for tray in ams["tray"]:
         augmentTrayDataWithSpoolMan(spool_list, tray, trayUid(ams["id"], tray["id"]))
-        issue |= tray["issue"]
+        issue |= tray.get("issue", False)
 
     return render_template('index.html', success_message=success_message, ams_data=ams_data, vt_tray_data=vt_tray_data, issue=issue)
   except Exception as e:
@@ -344,9 +357,6 @@ def extract_materials(spools):
 
 @app.route("/assign_tag")
 def assign_tag():
-  if not mqtt_bambulab.isMqttClientConnected():
-    return render_template('error.html', exception="MQTT is disconnected. Is the printer online?")
-
   try:
     spools = sort_spools(mqtt_bambulab.fetchSpools())
 

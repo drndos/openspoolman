@@ -328,3 +328,8 @@ def isMqttClientConnected():
   global MQTT_CLIENT_CONNECTED
 
   return MQTT_CLIENT_CONNECTED
+
+# Re-export functions from spoolman_service for convenience
+def fetchSpools(cached=False):
+  from spoolman_service import fetchSpools as _fetchSpools
+  return _fetchSpools(cached)
