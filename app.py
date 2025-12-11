@@ -248,7 +248,7 @@ def setActiveSpool(ams_id, tray_id, spool_data):
     return None
 
   if not mqtt_bambulab.isMqttClientConnected():
-    return render_template('error.html', exception="MQTT is disconnected. Is the printer online?")
+    return None
   
   ams_message = AMS_FILAMENT_SETTING
   ams_message["print"]["sequence_id"] = 0
