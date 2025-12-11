@@ -373,11 +373,21 @@ def write_tag():
     if not spool_id:
       return render_template('error.html', exception="spool ID is required as a query parameter (e.g., ?spool_id=1)")
 
-    myuuid = str(uuid.uuid4())
-
-    spoolman_client.patchExtraTags(spool_id, {}, {
-      "tag": json.dumps(myuuid),
-    })
+    # Check if tag already exists
+    spool_data = spoolman_client.getSpoolById(spool_id)
+    tag_value = spool_data.get("extra", {}).get("tag")
+    
+    if tag_value:
+      # Use existing tag
+      myuuid = json.loads(tag_value)
+    else:
+      # Create new tag
+      myuuid = str(uuid.uuid4())
+      existing_extra = spool_data.get("extra", {})
+      spoolman_client.patchExtraTags(spool_id, existing_extra, {
+        "tag": json.dumps(myuuid),
+      })
+    
     return render_template('write_tag.html', myuuid=myuuid, spool_id=spool_id)
   except Exception as e:
     traceback.print_exc()
