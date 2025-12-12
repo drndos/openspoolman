@@ -30,12 +30,19 @@ def fetchSpoolList():
   #print(response.text)
   return response.json()
 
-def consumeSpool(spool_id, use_weight):
-  print(f'Consuming {use_weight} from spool {spool_id}')
+def consumeSpool(spool_id, use_weight=None, use_length=None):
+  if use_weight is None and use_length is None:
+    raise ValueError("use_weight or use_length is required")
 
-  response = requests.put(f"{SPOOLMAN_API_URL}/spool/{spool_id}/use", json={
-    "use_weight": use_weight
-  })
+  payload = {}
+  if use_weight is not None:
+    payload["use_weight"] = use_weight
+  if use_length is not None:
+    payload["use_length"] = use_length
+
+  print(f'Consuming {payload} from spool {spool_id}')
+
+  response = requests.put(f"{SPOOLMAN_API_URL}/spool/{spool_id}/use", json=payload)
   print(response.status_code)
   print(response.text)
 
