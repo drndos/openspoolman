@@ -5,7 +5,7 @@ from threading import Thread
 
 import paho.mqtt.client as mqtt
 
-from config import PRINTER_ID, PRINTER_CODE, PRINTER_IP, AUTO_SPEND, EXTERNAL_SPOOL_AMS_ID, EXTERNAL_SPOOL_ID
+from config import PRINTER_ID, PRINTER_CODE, PRINTER_IP, AUTO_SPEND, EXTERNAL_SPOOL_AMS_ID, EXTERNAL_SPOOL_ID, TRACK_LAYER_USAGE
 from messages import GET_VERSION, PUSH_ALL
 from spoolman_service import spendFilaments, setActiveTray, fetchSpools
 from tools_3mf import getMetaDataFrom3mf
@@ -14,6 +14,7 @@ import copy
 from collections.abc import Mapping
 from logger import append_to_rotating_file
 from print_history import  insert_print, insert_filament_usage, update_filament_spool
+from filament_usage_tracker import FilamentUsageTracker
 
 MQTT_CLIENT = {}  # Global variable storing MQTT Client
 MQTT_CLIENT_CONNECTED = False
@@ -24,6 +25,7 @@ PRINTER_STATE = {}
 PRINTER_STATE_LAST = {}
 
 PENDING_PRINT_METADATA = {}
+FILAMENT_TRACKER = FilamentUsageTracker()
 
 def getPrinterModel():
     global PRINTER_ID
@@ -116,6 +118,8 @@ def processMessage(data):
     
     if "command" in data["print"] and data["print"]["command"] == "project_file" and "url" in data["print"]:
       PENDING_PRINT_METADATA = getMetaDataFrom3mf(data["print"]["url"])
+      if TRACK_LAYER_USAGE:
+        FILAMENT_TRACKER.set_print_metadata(PENDING_PRINT_METADATA)
 
       print_id = insert_print(PRINTER_STATE["print"]["subtask_name"], "cloud", PENDING_PRINT_METADATA["image"])
 
@@ -153,6 +157,8 @@ def processMessage(data):
         PENDING_PRINT_METADATA["filamentChanges"] = []
         PENDING_PRINT_METADATA["complete"] = False
         PENDING_PRINT_METADATA["print_id"] = print_id
+        if TRACK_LAYER_USAGE:
+          FILAMENT_TRACKER.set_print_metadata(PENDING_PRINT_METADATA)
 
         for id, filament in PENDING_PRINT_METADATA["filaments"].items():
           insert_filament_usage(print_id, filament["type"], filament["color"], filament["used_g"], id)
@@ -192,7 +198,11 @@ def processMessage(data):
           
 
     if PENDING_PRINT_METADATA and PENDING_PRINT_METADATA["complete"]:
-      spendFilaments(PENDING_PRINT_METADATA)
+      if TRACK_LAYER_USAGE:
+        FILAMENT_TRACKER.set_print_metadata(PENDING_PRINT_METADATA)
+        # Per-layer tracker will handle consumption; skip upfront spend.
+      else:
+        spendFilaments(PENDING_PRINT_METADATA)
 
       PENDING_PRINT_METADATA = {}
   
@@ -222,6 +232,8 @@ def on_message(client, userdata, msg):
 
     if AUTO_SPEND:
         processMessage(data)
+        if TRACK_LAYER_USAGE:
+            FILAMENT_TRACKER.on_message(data)
       
     # Save external spool tray data
     if "print" in data and "vt_tray" in data["print"]:

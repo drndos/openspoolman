@@ -18,4 +18,5 @@ PRINTER_NAME = os.getenv('PRINTER_NAME')     # Printer name - Check wireless on 
 SPOOLMAN_BASE_URL = os.getenv('SPOOLMAN_BASE_URL')
 SPOOLMAN_API_URL = f"{SPOOLMAN_BASE_URL}/api/v1"
 AUTO_SPEND = os.getenv('AUTO_SPEND', False)
+TRACK_LAYER_USAGE = os.getenv('TRACK_LAYER_USAGE', False)
 SPOOL_SORTING = os.getenv('SPOOL_SORTING', "filament.material:asc,filament.vendor.name:asc,filament.name:asc")

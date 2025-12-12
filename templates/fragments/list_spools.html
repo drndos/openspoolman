@@ -86,16 +86,14 @@
 
     {% if action_assign %}
     <a href="{{ url_for('write_tag', spool_id=spool.id) }}" class="spool-action-link">
-    <!-- Action Icon -->
-    {% if spool.extra.get("tag") or spool.extra.get("tag") == "\"\"" %}
-      <span class="badge bg-secondary rounded-pill">
-        <i class="bi bi-plus-circle"></i> Reassign
-      </span>
-    {% else %}
       <span class="badge bg-primary rounded-pill">
-        <i class="bi bi-plus-circle"></i> Assign
+        <i class="bi bi-tag"></i> Create NFC Tag
       </span>
-    {% endif %}
+    </a>
+    <a href="{{ url_for('qr_code', spool_id=spool.id) }}?download=true" class="spool-action-link" title="Download QR Code">
+      <span class="badge bg-info rounded-pill">
+        <i class="bi bi-qr-code"></i> QR Code
+      </span>
     </a>
     {% endif %}
 

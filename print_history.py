@@ -104,6 +104,20 @@ def update_filament_spool(print_id: int, filament_id: int, spool_id: int) -> Non
     conn.commit()
     conn.close()
 
+def update_filament_grams_used(print_id: int, filament_id: int, grams_used: float) -> None:
+    """
+    Updates the grams_used for a given filament usage entry, ensuring it belongs to the specified print job.
+    """
+    conn = sqlite3.connect(db_config["db_path"])
+    cursor = conn.cursor()
+    cursor.execute('''
+        UPDATE filament_usage
+        SET grams_used = ?
+        WHERE ams_slot = ? AND print_id = ?
+    ''', (grams_used, filament_id, print_id))
+    conn.commit()
+    conn.close()
+
 
 def get_prints_with_filament(limit: int | None = None, offset: int | None = None):
     """
@@ -163,18 +177,36 @@ def get_prints_by_spool(spool_id: int):
     return prints
 
 def get_filament_for_slot(print_id: int, ams_slot: int):
-    conn = sqlite3.connect(db_config["db_path"])
-    conn.row_factory = sqlite3.Row  # Enable column name access
-    cursor = conn.cursor()
+  conn = sqlite3.connect(db_config["db_path"])
+  conn.row_factory = sqlite3.Row  # Enable column name access
+  cursor = conn.cursor()
 
-    cursor.execute('''
-        SELECT * FROM filament_usage
-        WHERE print_id = ? AND ams_slot = ?
-    ''', (print_id, ams_slot))
+  cursor.execute('''
+      SELECT * FROM filament_usage
+      WHERE print_id = ? AND ams_slot = ?
+  ''', (print_id, ams_slot))
 
-    results = cursor.fetchone()
-    conn.close()
-    return results
+  results = cursor.fetchone()
+  conn.close()
+  return results
+
+def get_all_filament_usage_for_print(print_id: int):
+  """
+  Retrieves all filament usage entries for a specific print.
+  Returns a dict mapping ams_slot to grams_used.
+  """
+  conn = sqlite3.connect(db_config["db_path"])
+  conn.row_factory = sqlite3.Row
+  cursor = conn.cursor()
+
+  cursor.execute('''
+      SELECT ams_slot, grams_used FROM filament_usage
+      WHERE print_id = ?
+  ''', (print_id,))
+
+  results = {row["ams_slot"]: row["grams_used"] for row in cursor.fetchall()}
+  conn.close()
+  return results
 
 # Example for creating the database if it does not exist
 create_database()
