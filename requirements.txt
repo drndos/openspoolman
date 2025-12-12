@@ -6,3 +6,4 @@ pycurl==7.45.6
 gunicorn==23.0.0
 pytest==8.3.4
 python-dotenv==1.0.1
+qrcode[pil]==8.0

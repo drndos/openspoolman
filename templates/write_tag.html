@@ -3,16 +3,21 @@
 {% block content %}
 <!-- Page Title -->
 <div class="text-center mb-4">
-  <h1 class="fw-bold">NFC Write Process</h1>
-  <p class="text-muted">Follow the steps below to write data to your NFC tag.</p>
+  <h1 class="fw-bold">Tag Assignment</h1>
+  <p class="text-muted">Choose between NFC tag or QR code for your spool.</p>
 </div>
 
-<!-- Instruction Section -->
+<!-- NFC Section -->
 <div class="card shadow-sm mb-4">
-  <div class="card-body">
-    <h5 class="card-title mb-3">
-      <i class="bi bi-info-circle text-info me-2"></i> Instructions
+  <div class="card-header">
+    <h5 class="card-title mb-0">
+      <i class="bi bi-nfc text-success me-2"></i> NFC Tag
     </h5>
+  </div>
+  <div class="card-body">
+    <h6 class="card-subtitle mb-3">
+      <i class="bi bi-info-circle text-info me-2"></i> Instructions
+    </h6>
     <ul class="list-unstyled">
       <li><i class="bi bi-check-circle-fill text-success me-2"></i> Attach NFC tag to spool so you can reach it with the
         top of your phone.
@@ -20,20 +25,47 @@
       <li><i class="bi bi-wifi text-primary me-2"></i> Allow NFC usage if prompted.</li>
       <li><i class="bi bi-phone text-secondary me-2"></i> Bring the tag close to your phone when prompted.</li>
     </ul>
+    
+    <!-- Action Button -->
+    <div class="text-center mt-3">
+      <button id="write" class="btn btn-lg btn-success shadow" onclick="writeNFC()">
+        <i class="bi bi-nfc me-2"></i> Start Writing NFC Tag
+      </button>
+    </div>
+
+    <!-- Message Display -->
+    <div id="message" class="alert alert-secondary text-center mt-3" role="alert">
+      Press "Start Writing NFC Tag" to begin.
+    </div>
   </div>
 </div>
 
-<!-- Action Button -->
-<div class="text-center mb-3">
-  <button id="write" class="btn btn-lg btn-primary shadow" onclick="writeNFC()">
-    <i class="bi bi-nfc me-2"></i> Start Writing NFC Tag
-  </button>
+<!-- QR Code Section -->
+<div class="card shadow-sm mb-4">
+  <div class="card-header">
+    <h5 class="card-title mb-0">
+      <i class="bi bi-qr-code text-primary me-2"></i> QR Code
+    </h5>
+  </div>
+  <div class="card-body text-center">
+    <p class="text-muted mb-3">Print this QR code and attach it to your spool. Scan it with any smartphone camera to access spool information.</p>
+    
+    <!-- QR Code Image -->
+    <div class="mb-3">
+      <img src="{{ url_for('qr_code', spool_id=spool_id, tag_id=myuuid) }}" 
+           alt="QR Code for Spool {{ spool_id }}" 
+           class="img-fluid" 
+           style="max-width: 300px;">
+    </div>
+    
+    <!-- Download Button -->
+    <a href="{{ url_for('qr_code', spool_id=spool_id, tag_id=myuuid, download='true') }}" 
+       class="btn btn-primary">
+      <i class="bi bi-download me-2"></i> Download QR Code Image
+    </a>
+  </div>
 </div>
 
-<!-- Message Display -->
-<div id="message" class="alert alert-secondary text-center" role="alert">
-  Press "Start Writing NFC Tag" to begin.
-</div>
 
 <script type="text/javascript">
   function writeNFC() {

@@ -1,10 +1,13 @@
+import io
 import json
 import math
 import os
 import traceback
 import uuid
 
-from flask import Flask, request, render_template, redirect, url_for
+import qrcode
+from PIL import Image
+from flask import Flask, request, render_template, redirect, url_for, send_file
 
 from config import BASE_URL, AUTO_SPEND, SPOOLMAN_BASE_URL, EXTERNAL_SPOOL_AMS_ID, EXTERNAL_SPOOL_ID, PRINTER_NAME
 from filament import generate_filament_brand_code, generate_filament_temperatures
@@ -370,12 +373,100 @@ def write_tag():
     if not spool_id:
       return render_template('error.html', exception="spool ID is required as a query parameter (e.g., ?spool_id=1)")
 
-    myuuid = str(uuid.uuid4())
+    # Check if tag already exists
+    spool_data = spoolman_client.getSpoolById(spool_id)
+    tag_value = spool_data.get("extra", {}).get("tag")
+    
+    if tag_value:
+      # Use existing tag
+      myuuid = json.loads(tag_value)
+    else:
+      # Create new tag
+      myuuid = str(uuid.uuid4())
+      existing_extra = spool_data.get("extra", {})
+      spoolman_client.patchExtraTags(spool_id, existing_extra, {
+        "tag": json.dumps(myuuid),
+      })
+    
+    return render_template('write_tag.html', myuuid=myuuid, spool_id=spool_id)
+  except Exception as e:
+    traceback.print_exc()
+    return render_template('error.html', exception=str(e))
 
-    spoolman_client.patchExtraTags(spool_id, {}, {
-      "tag": json.dumps(myuuid),
-    })
-    return render_template('write_tag.html', myuuid=myuuid)
+@app.route("/qr_code")
+def qr_code():
+  try:
+    spool_id = request.args.get("spool_id")
+    tag_id = request.args.get("tag_id")
+    download = request.args.get("download", "false").lower() == "true"
+
+    if not spool_id and not tag_id:
+      return render_template('error.html', exception="spool_id or tag_id is required as a query parameter")
+
+    spool_data = None
+    # If tag_id is provided, use it; otherwise get it from spool
+    if not tag_id and spool_id:
+      spool_data = spoolman_client.getSpoolById(spool_id)
+      tag_value = spool_data.get("extra", {}).get("tag")
+      if tag_value:
+        tag_id = json.loads(tag_value)
+      else:
+        # If no tag exists, generate a new one
+        tag_id = str(uuid.uuid4())
+        existing_extra = spool_data.get("extra", {})
+        spoolman_client.patchExtraTags(spool_id, existing_extra, {
+          "tag": json.dumps(tag_id),
+        })
+    elif tag_id and spool_id:
+      # If both are provided, get spool data for display
+      try:
+        spool_data = spoolman_client.getSpoolById(spool_id)
+      except Exception:
+        pass
+    elif tag_id and not spool_id:
+      # Try to find spool by tag_id from SpoolMan
+      try:
+        spools = spoolman_client.fetchSpoolList()
+        for spool in spools:
+          tag_value = spool.get("extra", {}).get("tag")
+          if tag_value:
+            stored_tag = json.loads(tag_value)
+            if stored_tag == tag_id:
+              spool_data = spool
+              spool_id = spool.get('id')
+              break
+      except Exception:
+        pass
+
+    # Generate QR code URL
+    qr_url = f"{BASE_URL}/spool_info?tag_id={tag_id}"
+    
+    # Create QR code
+    qr = qrcode.QRCode(
+      version=1,
+      error_correction=qrcode.constants.ERROR_CORRECT_L,
+      box_size=6,
+      border=2,
+    )
+    qr.add_data(qr_url)
+    qr.make(fit=True)
+
+    # Create QR code image
+    qr_img = qr.make_image(fill_color="black", back_color="white")
+    # Convert to RGB mode to ensure compatibility
+    if qr_img.mode != 'RGB':
+      qr_img = qr_img.convert('RGB')
+    
+    img = qr_img
+    
+    # Save to bytes
+    img_io = io.BytesIO()
+    img.save(img_io, 'PNG')
+    img_io.seek(0)
+
+    # Return as download or inline
+    filename = f"spool_{spool_id}_qr.png" if spool_id else f"tag_{tag_id}_qr.png"
+    return send_file(img_io, mimetype='image/png', as_attachment=download, download_name=filename)
   except Exception as e:
     traceback.print_exc()
     return render_template('error.html', exception=str(e))
