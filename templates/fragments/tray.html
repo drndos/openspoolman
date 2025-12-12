@@ -106,7 +106,7 @@
           <div class="mt-2 d-flex flex-column flex-sm-row">
             <div class="me-sm-1">Remaining:</div>
             {% if AUTO_SPEND and tray_data.matched %}
-              <div class="fw-bold">{{ tray_data.remaining_weight|round }}g</div>
+              <div class="fw-bold">{{ tray_data.remaining_weight|round(1) }}g</div>
             {% else %}
               <div class="fw-bold">{{ tray_data.remain }}%</div>
             {% endif %}
