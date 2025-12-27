@@ -1,6 +1,31 @@
 import requests
 from config import SPOOLMAN_API_URL, SPOOL_SORTING
 import json
+from logger import append_to_rotating_file, log
+
+SPOOLMAN_LOG_FILE = "/home/app/logs/spoolman.log"
+
+
+def _log_spoolman_change(action, spool_id=None, payload=None, status=None):
+  parts = [action]
+
+  if spool_id is not None:
+    parts.append(f"spool_id={spool_id}")
+
+  if status is not None:
+    parts.append(f"status={status}")
+
+  if payload is not None:
+    try:
+      payload_str = json.dumps(payload)
+    except TypeError:
+      payload_str = str(payload)
+    parts.append(f"payload={payload_str}")
+
+  try:
+    append_to_rotating_file(SPOOLMAN_LOG_FILE, " | ".join(parts))
+  except Exception:
+    pass
 
 def patchExtraTags(spool_id, old_extras, new_extras):
   for key, value in new_extras.items():
@@ -9,6 +34,12 @@ def patchExtraTags(spool_id, old_extras, new_extras):
   resp = requests.patch(f"{SPOOLMAN_API_URL}/spool/{spool_id}", json={
     "extra": old_extras
   })
+  _log_spoolman_change(
+    "patch_extra_tags",
+    spool_id=spool_id,
+    payload={"extra": old_extras},
+    status=resp.status_code,
+  )
   #print(resp.text)
   #print(resp.status_code)
 
@@ -40,9 +71,15 @@ def consumeSpool(spool_id, use_weight=None, use_length=None):
   if use_length is not None:
     payload["use_length"] = use_length
 
-  print(f'Consuming {payload} from spool {spool_id}')
+  log(f'Consuming {payload} from spool {spool_id}')
 
   response = requests.put(f"{SPOOLMAN_API_URL}/spool/{spool_id}/use", json=payload)
+  _log_spoolman_change(
+    "consume_spool",
+    spool_id=spool_id,
+    payload=payload,
+    status=response.status_code,
+  )
   #print(response.status_code)
   #print(response.text)
 

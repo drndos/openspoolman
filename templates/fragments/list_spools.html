@@ -50,9 +50,17 @@
                         {% endfor %}
                 </div>
                 {% else %}
+                {% set spool_color = spool.filament.color_hex %}
+                {% if spool_color %}
                 <span class="badge d-inline-block"
-              style="background-color: #{{ spool.filament.color_hex }}; width: 20px; height: 50px;">
+              style="background-color: #{{ spool_color }}; width: 20px; height: 50px;">
         </span>
+                {% else %}
+                <span class="badge d-inline-block missing-color"
+              style="background-color: var(--bs-secondary, #6c757d); width: 20px; height: 50px;"
+              title="Color not set">
+        </span>
+                {% endif %}
                 {% endif %}
     </div>
 
@@ -145,7 +153,8 @@
     try {
       JSON.parse(stateInput.value).forEach((material) => selected.add(material));
     } catch (error) {
-      console.warn('Failed to parse selected materials', error);
+      const ts = new Date().toISOString();
+      console.warn(`[${ts}] Failed to parse selected materials`, error);
     }
   }
 

@@ -143,4 +143,5 @@ node_modules/
 
 static/prints/
 data/
-
+logs/*.log
+logs/*.json

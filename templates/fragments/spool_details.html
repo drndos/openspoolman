@@ -6,9 +6,17 @@
     <!-- Filament Color Badge and Name -->
     <div class="d-flex align-items-start mb-3">
       <div class="me-3">
+                {% set spool_color = current_spool.filament.color_hex %}
+                {% if spool_color %}
                 <span class="badge d-inline-block"
-                      style="background-color: #{{ current_spool.filament.color_hex }}; width: 40px; height: 40px; border-radius: 5px;">
+                      style="background-color: #{{ spool_color }}; width: 40px; height: 40px; border-radius: 5px;">
                 </span>
+                {% else %}
+                <span class="badge d-inline-block missing-color"
+                      style="background-color: var(--bs-secondary, #6c757d); width: 40px; height: 40px; border-radius: 5px;"
+                      title="Color not set">
+                </span>
+                {% endif %}
       </div>
       <div>
         <h5 class="card-title mb-0">{{ current_spool.filament.name }} - {{ current_spool.filament.material }}</h5>

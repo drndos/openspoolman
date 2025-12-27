@@ -23,7 +23,7 @@ from tools_3mf import getMetaDataFrom3mf
 import time
 import copy
 from collections.abc import Mapping
-from logger import append_to_rotating_file
+from logger import append_to_rotating_file, log
 from print_history import insert_print, insert_filament_usage
 from filament_usage_tracker import FilamentUsageTracker
 MQTT_CLIENT = {}  # Global variable storing MQTT Client
@@ -170,7 +170,7 @@ def map_filament(tray_tar):
   #if stg_cur == 4 and tray_tar is not None:
   if PENDING_PRINT_METADATA:
     PENDING_PRINT_METADATA["filamentChanges"].append(tray_tar)  # Jeder Wechsel zählt, auch auf das gleiche Tray
-    print(f'Filamentchange {len(PENDING_PRINT_METADATA["filamentChanges"])}: Tray {tray_tar}')
+    log(f'Filamentchange {len(PENDING_PRINT_METADATA["filamentChanges"])}: Tray {tray_tar}')
 
     # Anzahl der erkannten Wechsel
     change_count = len(PENDING_PRINT_METADATA["filamentChanges"]) - 1  # -1, weil der erste Eintrag kein Wechsel ist
@@ -196,12 +196,12 @@ def map_filament(tray_tar):
       while len(mapping) <= filament_idx:
         mapping.append(None)
       mapping[filament_idx] = tray_tar
-      print(f"✅ Tray {tray_tar} assigned to Filament {filament_assigned}")
+      log(f"✅ Tray {tray_tar} assigned to Filament {filament_assigned}")
 
       for filament, tray in enumerate(mapping):
         if tray is None:
           continue
-        print(f"  Filament pos: {filament} → Tray {tray}")
+        log(f"  Filament pos: {filament} → Tray {tray}")
 
     target_filaments = set(filament_order.keys())
     if target_filaments:
@@ -210,7 +210,7 @@ def map_filament(tray_tar):
         if tray is not None
       }
       if target_filaments.issubset(assigned_filaments):
-        print("\n✅ All trays assigned:")
+        log("\n✅ All trays assigned:")
         return True
   
   return False
@@ -222,7 +222,7 @@ def processMessage(data):
   if "print" in data:    
     update_dict(PRINTER_STATE, data)
     
-    if "command" in data["print"] and data["print"]["command"] == "project_file" and "url" in data["print"]:
+    if data["print"].get("command") == "project_file" and data["print"].get("url"):
       PENDING_PRINT_METADATA = getMetaDataFrom3mf(data["print"]["url"])
       PENDING_PRINT_METADATA["print_type"] = PRINTER_STATE["print"].get("print_type")
       PENDING_PRINT_METADATA["task_id"] = PRINTER_STATE["print"].get("task_id")
@@ -232,7 +232,7 @@ def processMessage(data):
 
       print_id = insert_print(PRINTER_STATE["print"]["subtask_name"], "cloud", PENDING_PRINT_METADATA["image"])
 
-      if "use_ams" in PRINTER_STATE["print"] and PRINTER_STATE["print"]["use_ams"]:
+      if PRINTER_STATE["print"].get("use_ams"):
         PENDING_PRINT_METADATA["ams_mapping"] = PRINTER_STATE["print"]["ams_mapping"]
       else:
         PENDING_PRINT_METADATA["ams_mapping"] = [EXTERNAL_SPOOL_ID]
@@ -242,9 +242,13 @@ def processMessage(data):
 
       for id, filament in PENDING_PRINT_METADATA["filaments"].items():
         parsed_grams = _parse_grams(filament.get("used_g"))
+        parsed_length_m = _parse_grams(filament.get("used_m"))
+        estimated_length_mm = parsed_length_m * 1000 if parsed_length_m is not None else None
         grams_used = parsed_grams if parsed_grams is not None else 0.0
+        length_used = estimated_length_mm if estimated_length_mm is not None else 0.0
         if TRACK_LAYER_USAGE:
           grams_used = 0.0
+          length_used = 0.0
         insert_filament_usage(
             print_id,
             filament["type"],
@@ -252,21 +256,20 @@ def processMessage(data):
             grams_used,
             id,
             estimated_grams=parsed_grams,
+            length_used=length_used,
+            estimated_length=estimated_length_mm,
         )
   
     #if ("gcode_state" in data["print"] and data["print"]["gcode_state"] == "RUNNING") and ("print_type" in data["print"] and data["print"]["print_type"] != "local") \
     #  and ("tray_tar" in data["print"] and data["print"]["tray_tar"] != "255") and ("stg_cur" in data["print"] and data["print"]["stg_cur"] == 0 and PRINT_CURRENT_STAGE != 0):
     
     #TODO: What happens when printed from external spool, is ams and tray_tar set?
-    if ( "print_type" in PRINTER_STATE["print"] and PRINTER_STATE["print"]["print_type"] == "local" and
-        "print" in PRINTER_STATE_LAST
-      ):
+    if PRINTER_STATE.get("print", {}).get("print_type") == "local" and PRINTER_STATE_LAST.get("print"):
 
       if (
-          "gcode_state" in PRINTER_STATE["print"] and 
-          PRINTER_STATE["print"]["gcode_state"] == "RUNNING" and
-          PRINTER_STATE_LAST["print"]["gcode_state"] == "PREPARE" and 
-          "gcode_file" in PRINTER_STATE["print"]
+          PRINTER_STATE["print"].get("gcode_state") == "RUNNING" and
+          PRINTER_STATE_LAST["print"].get("gcode_state") == "PREPARE" and 
+          PRINTER_STATE["print"].get("gcode_file")
         ):
 
         if not PENDING_PRINT_METADATA:
@@ -288,9 +291,13 @@ def processMessage(data):
 
             for id, filament in PENDING_PRINT_METADATA["filaments"].items():
               parsed_grams = _parse_grams(filament.get("used_g"))
+              parsed_length_m = _parse_grams(filament.get("used_m"))
+              estimated_length_mm = parsed_length_m * 1000 if parsed_length_m is not None else None
               grams_used = parsed_grams if parsed_grams is not None else 0.0
+              length_used = estimated_length_mm if estimated_length_mm is not None else 0.0
               if TRACK_LAYER_USAGE:
                 grams_used = 0.0
+                length_used = 0.0
               insert_filament_usage(
                   print_id,
                   filament["type"],
@@ -298,6 +305,8 @@ def processMessage(data):
                   grams_used,
                   id,
                   estimated_grams=parsed_grams,
+                  length_used=length_used,
+                  estimated_length=estimated_length_mm,
               )
 
             PENDING_PRINT_METADATA["tracking_started"] = True
@@ -305,56 +314,49 @@ def processMessage(data):
         #TODO 
     
       # When stage changed to "change filament" and PENDING_PRINT_METADATA is set
-      curr_tray_tar = None
-      prev_tray_tar = None
-      if "ams" in PRINTER_STATE["print"] and "tray_tar" in PRINTER_STATE["print"]["ams"]:
-        curr_tray_tar = PRINTER_STATE["print"]["ams"]["tray_tar"]
-      if "ams" in PRINTER_STATE_LAST["print"] and "tray_tar" in PRINTER_STATE_LAST["print"]["ams"]:
-        prev_tray_tar = PRINTER_STATE_LAST["print"]["ams"]["tray_tar"]
-
       if (PENDING_PRINT_METADATA and 
           (
-            ("stg_cur" in PRINTER_STATE["print"] and (int(PRINTER_STATE["print"]["stg_cur"]) == 4) and      # change filament stage (beginning of print)
+            (
+              int(PRINTER_STATE["print"].get("stg_cur", -1)) == 4 and      # change filament stage (beginning of print)
               ( 
-                "stg_cur" not in PRINTER_STATE_LAST["print"] or                                           # last stage not known
+                PRINTER_STATE_LAST["print"].get("stg_cur", -1) == -1 or                                           # last stage not known
                 (
-                  PRINTER_STATE_LAST["print"]["stg_cur"] != PRINTER_STATE["print"]["stg_cur"]             # stage has changed and last state was 255 (retract to ams)
-                  and "ams" in PRINTER_STATE_LAST["print"] and int(PRINTER_STATE_LAST["print"]["ams"]["tray_tar"]) == 255
+                  int(PRINTER_STATE_LAST["print"].get("stg_cur")) != int(PRINTER_STATE["print"].get("stg_cur")) and
+                  PRINTER_STATE_LAST["print"].get("ams", {}).get("tray_tar") == "255"             # stage has changed and last state was 255 (retract to ams)
                 )
-                or "ams" not in PRINTER_STATE_LAST["print"]                                               # ams not set in last state
+                or not PRINTER_STATE_LAST["print"].get("ams")                                               # ams not set in last state
               )
             )
             or                                                                                            # filament changes during printing are in mc_print_sub_stage
             (
-              "mc_print_sub_stage" in PRINTER_STATE_LAST["print"] and int(PRINTER_STATE_LAST["print"]["mc_print_sub_stage"]) == 4  # last state was change filament
-              and int(PRINTER_STATE["print"]["mc_print_sub_stage"]) == 2                                                           # current state 
+              int(PRINTER_STATE_LAST["print"].get("mc_print_sub_stage", -1)) == 4  # last state was change filament
+              and int(PRINTER_STATE["print"].get("mc_print_sub_stage", -1)) == 2                                                           # current state 
             )
             or (
-              "ams" in PRINTER_STATE["print"] and int(PRINTER_STATE["print"]["ams"]["tray_tar"]) == 254
+              PRINTER_STATE["print"].get("ams", {}).get("tray_tar") == "254"
             )
             or 
             (
-              int(PRINTER_STATE["print"]["stg_cur"]) == 24 and int(PRINTER_STATE_LAST["print"]["stg_cur"]) == 13
+              int(PRINTER_STATE["print"].get("stg_cur", -1)) == 24 and int(PRINTER_STATE_LAST["print"].get("stg_cur", -1)) == 13
             )
             or (
-              "stg_cur" in PRINTER_STATE["print"] and int(PRINTER_STATE["print"]["stg_cur"]) == 4 and
-              curr_tray_tar is not None and curr_tray_tar != "255" and
-              (prev_tray_tar is None or prev_tray_tar != curr_tray_tar)
+              int(PRINTER_STATE["print"].get("stg_cur", -1)) == 4 and
+              PRINTER_STATE["print"].get("ams", {}).get("tray_tar") not in (None, "255") and
+              (PRINTER_STATE_LAST["print"].get("ams", {}).get("tray_tar") is None or PRINTER_STATE_LAST["print"].get("ams", {}).get("tray_tar") != PRINTER_STATE["print"].get("ams", {}).get("tray_tar"))
             )
 
           )
       ):
-        if "ams" in PRINTER_STATE["print"]:
+        if PRINTER_STATE["print"].get("ams"):
             mapped = False
-            tray_tar_value = PRINTER_STATE["print"]["ams"].get("tray_tar")
+            tray_tar_value = PRINTER_STATE["print"].get("ams").get("tray_tar")
             if tray_tar_value and tray_tar_value != "255":
                 mapped = map_filament(int(tray_tar_value))
             FILAMENT_TRACKER.apply_ams_mapping(PENDING_PRINT_METADATA.get("ams_mapping") or [])
             if mapped:
                 PENDING_PRINT_METADATA["complete"] = True
-          
 
-    if PENDING_PRINT_METADATA and PENDING_PRINT_METADATA["complete"]:
+    if PENDING_PRINT_METADATA and PENDING_PRINT_METADATA.get("complete"):
       if TRACK_LAYER_USAGE:
         if PENDING_PRINT_METADATA.get("print_type") == "local":
           FILAMENT_TRACKER.apply_ams_mapping(PENDING_PRINT_METADATA.get("ams_mapping") or [])
@@ -372,10 +374,10 @@ def publish(client, msg):
   result = client.publish(f"device/{PRINTER_ID}/request", json.dumps(msg))
   status = result[0]
   if status == 0:
-    print(f"Sent {msg} to topic device/{PRINTER_ID}/request")
+    log(f"Sent {msg} to topic device/{PRINTER_ID}/request")
     return True
 
-  print(f"Failed to send message to topic device/{PRINTER_ID}/request")
+  log(f"Failed to send message to topic device/{PRINTER_ID}/request")
   return False
 
 
@@ -431,10 +433,10 @@ def on_message(client, userdata, msg):
     if "print" in data and "ams" in data["print"] and "ams" in data["print"]["ams"]:
       LAST_AMS_CONFIG["ams"] = data["print"]["ams"]["ams"]
       for ams in data["print"]["ams"]["ams"]:
-        print(f"AMS [{num2letter(ams['id'])}] (hum: {ams['humidity']}, temp: {ams['temp']}ºC)")
+        log(f"AMS [{num2letter(ams['id'])}] (hum: {ams['humidity']}, temp: {ams['temp']}ºC)")
         for tray in ams["tray"]:
           if "tray_sub_brands" in tray:
-            print(
+            log(
                 f"    - [{num2letter(ams['id'])}{tray['id']}] {tray['tray_sub_brands']} {tray['tray_color']} ({str(tray['remain']).zfill(3)}%) [[ {tray['tray_uuid']} ]]")
 
             found = False
@@ -460,17 +462,17 @@ def on_message(client, userdata, msg):
               # })
 
             if not found and tray_uuid == "00000000000000000000000000000000":
-              print("      - non Bambulab Spool!")
+              log("      - non Bambulab Spool!")
             elif not found:
-              print("      - Not found. Update spool tag!")
+              log("      - Not found. Update spool tag!")
               tray["unmapped_bambu_tag"] = tray_uuid
               tray["issue"] = True
               clear_active_spool_for_tray(ams['id'], tray['id'])
               clear_ams_tray_assignment(ams['id'], tray['id'])
           else:
-            print(
+            log(
                 f"    - [{num2letter(ams['id'])}{tray['id']}]")
-            print("      - No Spool!")
+            log("      - No Spool!")
 
   except Exception:
     traceback.print_exc()
@@ -478,7 +480,7 @@ def on_message(client, userdata, msg):
 def on_connect(client, userdata, flags, rc):
   global MQTT_CLIENT_CONNECTED
   MQTT_CLIENT_CONNECTED = True
-  print("Connected with result code " + str(rc))
+  log("Connected with result code " + str(rc))
   client.subscribe(f"device/{PRINTER_ID}/report")
   publish(client, GET_VERSION)
   publish(client, PUSH_ALL)
@@ -486,7 +488,7 @@ def on_connect(client, userdata, flags, rc):
 def on_disconnect(client, userdata, rc):
   global MQTT_CLIENT_CONNECTED
   MQTT_CLIENT_CONNECTED = False
-  print("Disconnected with result code " + str(rc))
+  log("Disconnected with result code " + str(rc))
   
 def async_subscribe():
   global MQTT_CLIENT
@@ -507,12 +509,12 @@ def async_subscribe():
   while True:
     while not MQTT_CLIENT_CONNECTED:
       try:
-          print("🔄 Trying to connect ...", flush=True)
+          log("🔄 Trying to connect ...", flush=True)
           MQTT_CLIENT.connect(PRINTER_IP, 8883, MQTT_KEEPALIVE)
           MQTT_CLIENT.loop_start()
           
       except Exception as exc:
-          print(f"⚠️ connection failed: {exc}, new try in 15 seconds...", flush=True)
+          log(f"⚠️ connection failed: {exc}, new try in 15 seconds...", flush=True)
 
       time.sleep(15)
 

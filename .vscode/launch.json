@@ -24,7 +24,7 @@
         },
         {
             "name": "Debug MQTT Replay",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "module": "pytest",
             "console": "integratedTerminal",

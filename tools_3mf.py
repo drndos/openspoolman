@@ -10,6 +10,7 @@ import time
 from datetime import datetime
 from config import PRINTER_CODE, PRINTER_IP
 from urllib.parse import urlparse
+from logger import log
 
 def parse_ftp_listing(line):
     """Parse a line from an FTP LIST command."""
@@ -57,14 +58,14 @@ def get_filament_order(file):
     return filament_order
 
 def download3mfFromCloud(url, destFile):
-  print("Downloading 3MF file from cloud...")
+  log("Downloading 3MF file from cloud...")
   # Download the file and save it to the temporary file
   response = requests.get(url)
   response.raise_for_status()
   destFile.write(response.content)
 
 def download3mfFromFTP(filename, destFile):
-  print("Downloading 3MF file from FTP...")
+  log("Downloading 3MF file from FTP...")
   ftp_host = PRINTER_IP
   ftp_user = "bblp"
   ftp_pass = PRINTER_CODE
@@ -90,13 +91,13 @@ def download3mfFromFTP(filename, destFile):
     # 🔹 Enable proper TLS authentication
     c.setopt(c.FTPSSLAUTH, c.FTPAUTH_TLS)
 
-    print("[DEBUG] Starting file download...")
+    log("[DEBUG] Starting file download...")
 
     try:
         c.perform()
-        print("[DEBUG] File successfully downloaded!")
+        log("[DEBUG] File successfully downloaded!")
     except pycurl.error as e:
-        print(f"[ERROR] cURL error: {e}")
+        log(f"[ERROR] cURL error: {e}")
 
     c.close()
 
@@ -134,7 +135,7 @@ def getMetaDataFrom3mf(url):
       parsed_url = urlparse(url)
       metadata["file"] = os.path.basename(parsed_url.path)
 
-      print(f"3MF file downloaded and saved as {temp_file_name}.")
+      log(f"3MF file downloaded and saved as {temp_file_name}.")
 
       # Unzip the 3MF file
       with zipfile.ZipFile(temp_file_name, 'r') as z:
@@ -211,7 +212,7 @@ def getMetaDataFrom3mf(url):
             metadata["filaments"] = filaments
             metadata["usage"] = usage
         else:
-          print(f"File '{slice_info_path}' not found in the archive.")
+          log(f"File '{slice_info_path}' not found in the archive.")
           return {}
 
         metadata["image"] = time.strftime('%Y%m%d%H%M%S') + ".png"
@@ -227,19 +228,19 @@ def getMetaDataFrom3mf(url):
           with z.open(gcode_path) as gcode_file:
             metadata["filamentOrder"] =  get_filament_order(gcode_file)
 
-        print(metadata)
+        log(metadata)
 
         return metadata
 
   except requests.exceptions.RequestException as e:
-    print(f"Error downloading file: {e}")
+    log(f"Error downloading file: {e}")
     return {}
   except zipfile.BadZipFile:
-    print("The downloaded file is not a valid 3MF archive.")
+    log("The downloaded file is not a valid 3MF archive.")
     return {}
   except ET.ParseError:
-    print("Error parsing the XML file.")
+    log("Error parsing the XML file.")
     return {}
   except Exception as e:
-    print(f"An unexpected error occurred: {e}")
+    log(f"An unexpected error occurred: {e}")
     return {}

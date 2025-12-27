@@ -341,3 +341,33 @@ main.container {
     top: 60%;
     transform: translate(-50%, -50%);
 }
+
+.missing-color,
+.badge-missing-color {
+    position: relative;
+    overflow: hidden;
+}
+.missing-color::after,
+.badge-missing-color::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: -20%;
+    right: -20%;
+    height: 4px;
+    background: rgba(220, 53, 69, 0.9);
+    transform: translateY(-50%) rotate(-45deg);
+    pointer-events: none;
+}
+.badge-missing-color {
+    background-color: var(--bs-secondary, #6c757d);
+    color: var(--bs-body-color, #fff);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 47.648px;
+    height: 12px;
+    padding: 8px;
+    box-sizing: border-box;
+    font-size: 0;
+}

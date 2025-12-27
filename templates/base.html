@@ -72,7 +72,10 @@
                             attachLinkListeners(); // Rebind event listeners for new links
                             executeScripts(newDocument); // Re-execute all JavaScript code
                         })
-                        .catch(error => console.error("Error loading page:", error));
+                        .catch(error => {
+                            const ts = new Date().toISOString();
+                            console.error(`[${ts}] Error loading page:`, error);
+                        });
                 });
             });
         }
@@ -84,7 +87,10 @@
                 if (oldScript.src) {
                     // If it's an external script, reload it
                     newScript.src = oldScript.src;
-                    newScript.onload = () => console.log(`Loaded: ${oldScript.src}`);
+                    newScript.onload = () => {
+                      const ts = new Date().toISOString();
+                      console.log(`[${ts}] Loaded: ${oldScript.src}`);
+                    };
                 } else {
                     // If it's an inline script, copy and execute it
                     newScript.textContent = oldScript.textContent;

@@ -1,11 +1,20 @@
 def color_is_dark(bg_color):
-  # Remove '#' if present
-  color = bg_color[1:] if bg_color.startswith('#') else bg_color
+  # Accept only normalized six-digit hex colors (with or without '#'); everything else is safe to treat as light.
+  if not isinstance(bg_color, str):
+    return False
 
-  # Extract RGB components
-  r = int(color[0:2], 16)  # Hex to R
-  g = int(color[2:4], 16)  # Hex to G
-  b = int(color[4:6], 16)  # Hex to B
+  color = bg_color.strip()
+  color = color[1:] if color.startswith('#') else color
+
+  if len(color) != 6:
+    return False
+
+  try:
+    r = int(color[0:2], 16)  # Hex to R
+    g = int(color[2:4], 16)  # Hex to G
+    b = int(color[4:6], 16)  # Hex to B
+  except ValueError:
+    return False
 
   # Convert RGB values to normalized UI colors
   uicolors = [r / 255.0, g / 255.0, b / 255.0]

@@ -5,6 +5,7 @@ import os
 import sys
 import time
 from pathlib import Path
+from logger import log
 
 # Ensure repository root is importable and the working directory matches the project root
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -58,9 +59,9 @@ def export_snapshot(path: Path, include_prints: bool = True) -> None:
     if wait_for_mqtt_ready():
         last_ams_config = wait_for_ams_data()
         if not (last_ams_config.get("ams") or last_ams_config.get("vt_tray")):
-            print("⚠️ AMS data not received before timeout; continuing without trays")
+            log("⚠️ AMS data not received before timeout; continuing without trays")
     else:
-        print("⚠️ MQTT connection not ready; continuing without AMS tray data")
+        log("⚠️ MQTT connection not ready; continuing without AMS tray data")
 
     spools = fetchSpoolList()
     for spool in spools:
@@ -94,7 +95,7 @@ def export_snapshot(path: Path, include_prints: bool = True) -> None:
     with path.open("w", encoding="utf-8") as f:
         json.dump(snapshot, f, ensure_ascii=False, indent=2)
 
-    print(f"✅ Wrote live snapshot to {path}")
+    log(f"✅ Wrote live snapshot to {path}")
 
 
 def main() -> int:
@@ -104,7 +105,7 @@ def main() -> int:
     args = parser.parse_args()
 
     if os.getenv("OPENSPOOLMAN_TEST_DATA") == "1":
-        print("⚠️ OPENSPOOLMAN_TEST_DATA is set; run against a live instance to snapshot real data")
+        log("⚠️ OPENSPOOLMAN_TEST_DATA is set; run against a live instance to snapshot real data")
         return 1
 
     export_snapshot(args.output, include_prints=not args.skip_prints)

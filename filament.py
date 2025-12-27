@@ -1,4 +1,5 @@
 # mapping adapted from https://github.com/spuder/OpenSpool/blob/main/firmware/conf.d/automation.yaml
+from logger import log
 def generate_filament_brand_code(filament_type, filament_brand, filament_variant):
   filament_sub_brand = ""
   filament_brand_code = ""
@@ -105,7 +106,7 @@ def generate_filament_brand_code(filament_type, filament_brand, filament_variant
       filament_brand_code = "GFS00"
       filament_sub_brand = "Support W"
   else:
-    print(f"Unknown filament type: {filament_type}")
+    log(f"Unknown filament type: {filament_type}")
 
   return {"brand_code": filament_brand_code,
           "sub_brand_code": filament_sub_brand
@@ -117,7 +118,7 @@ def generate_filament_temperatures(filament_type, filament_brand):
   filament_max_temp = 300
 
   if not filament_type:
-    print("Skipping temperature generation as filament_type is empty.")
+    log("Skipping temperature generation as filament_type is empty.")
     return
 
   if filament_type == "TPU":
@@ -125,7 +126,7 @@ def generate_filament_temperatures(filament_type, filament_brand):
       filament_min_temp = 200
       filament_max_temp = 250
     else:
-      print(f"Unknown temperatures for TPU brand: {filament_brand}")
+      log(f"Unknown temperatures for TPU brand: {filament_brand}")
       filament_min_temp = 200
       filament_max_temp = 250
   elif filament_type == "PLA":
@@ -133,7 +134,7 @@ def generate_filament_temperatures(filament_type, filament_brand):
       filament_min_temp = 190
       filament_max_temp = 240
     else:
-      print(f"Unknown temperatures for PLA brand: {filament_brand}")
+      log(f"Unknown temperatures for PLA brand: {filament_brand}")
       filament_min_temp = 190
       filament_max_temp = 240
   elif filament_type == "PETG":
@@ -141,7 +142,7 @@ def generate_filament_temperatures(filament_type, filament_brand):
       filament_min_temp = 220
       filament_max_temp = 270
     else:
-      print(f"Unknown temperatures for PETG brand: {filament_brand}")
+      log(f"Unknown temperatures for PETG brand: {filament_brand}")
       filament_min_temp = 220
       filament_max_temp = 270
   elif filament_type == "ASA":
@@ -149,7 +150,7 @@ def generate_filament_temperatures(filament_type, filament_brand):
       filament_min_temp = 240
       filament_max_temp = 280
     else:
-      print(f"Unknown temperatures for ASA brand: {filament_brand}")
+      log(f"Unknown temperatures for ASA brand: {filament_brand}")
       filament_min_temp = 240
       filament_max_temp = 280
 
@@ -158,7 +159,7 @@ def generate_filament_temperatures(filament_type, filament_brand):
       filament_min_temp = 250
       filament_max_temp = 300
     else:
-      print(f"Unknown temperatures for PC brand: {filament_brand}")
+      log(f"Unknown temperatures for PC brand: {filament_brand}")
       filament_min_temp = 250
       filament_max_temp = 300
 
@@ -168,11 +169,11 @@ def generate_filament_temperatures(filament_type, filament_brand):
       filament_min_temp = 260
       filament_max_temp = 300
     else:
-      print(f"Unknown temperatures for PA brand: {filament_brand}")
+      log(f"Unknown temperatures for PA brand: {filament_brand}")
       filament_min_temp = 260
       filament_max_temp = 300
   else:
-    print(f"Unknown filament type: {filament_type}")
+    log(f"Unknown filament type: {filament_type}")
 
   return {"filament_min_temp": filament_min_temp,
           "filament_max_temp": filament_max_temp

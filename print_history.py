@@ -57,6 +57,8 @@ def create_database() -> None:
             grams_used REAL NOT NULL,
             ams_slot INTEGER NOT NULL,
             estimated_grams REAL,
+            length_used REAL,
+            estimated_length REAL,
             FOREIGN KEY (print_id) REFERENCES prints (id) ON DELETE CASCADE
         )
     ''')
@@ -80,6 +82,18 @@ def create_database() -> None:
         cursor,
         "filament_usage",
         "estimated_grams",
+        "REAL",
+    )
+    _ensure_column(
+        cursor,
+        "filament_usage",
+        "length_used",
+        "REAL",
+    )
+    _ensure_column(
+        cursor,
+        "filament_usage",
+        "estimated_length",
         "REAL",
     )
 
@@ -127,6 +141,8 @@ def insert_filament_usage(
     grams_used: float,
     ams_slot: int,
     estimated_grams: float | None = None,
+    length_used: float | None = None,
+    estimated_length: float | None = None,
 ) -> None:
     """
     Inserts a new filament usage entry for a specific print job.
@@ -134,9 +150,9 @@ def insert_filament_usage(
     conn = sqlite3.connect(db_config["db_path"])
     cursor = conn.cursor()
     cursor.execute('''
-        INSERT INTO filament_usage (print_id, filament_type, color, grams_used, ams_slot, estimated_grams)
-        VALUES (?, ?, ?, ?, ?, ?)
-    ''', (print_id, filament_type, color, grams_used, ams_slot, estimated_grams))
+        INSERT INTO filament_usage (print_id, filament_type, color, grams_used, ams_slot, estimated_grams, length_used, estimated_length)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    ''', (print_id, filament_type, color, grams_used, ams_slot, estimated_grams, length_used, estimated_length))
     conn.commit()
     conn.close()
 
@@ -154,17 +170,26 @@ def update_filament_spool(print_id: int, filament_id: int, spool_id: int) -> Non
     conn.commit()
     conn.close()
 
-def update_filament_grams_used(print_id: int, filament_id: int, grams_used: float) -> None:
+def update_filament_grams_used(print_id: int, filament_id: int, grams_used: float, length_used: float | None = None) -> None:
     """
-    Updates the grams_used for a given filament usage entry, ensuring it belongs to the specified print job.
+    Updates the grams_used (and optional length_used) for a given filament usage entry, ensuring it belongs to the specified print job.
     """
+    set_parts = ["grams_used = ?"]
+    params: list[float | int] = [grams_used]
+    if length_used is not None:
+        set_parts.append("length_used = ?")
+        params.append(length_used)
+
+    set_clause = ", ".join(set_parts)
+    params.extend([filament_id, print_id])
+
     conn = sqlite3.connect(db_config["db_path"])
     cursor = conn.cursor()
-    cursor.execute('''
+    cursor.execute(f'''
         UPDATE filament_usage
-        SET grams_used = ?
+        SET {set_clause}
         WHERE ams_slot = ? AND print_id = ?
-    ''', (grams_used, filament_id, print_id))
+    ''', params)
     conn.commit()
     conn.close()
 
@@ -193,6 +218,8 @@ def get_prints_with_filament(limit: int | None = None, offset: int | None = None
                 'color', f.color,
                 'grams_used', f.grams_used,
                 'estimated_grams', f.estimated_grams,
+                'length_used', f.length_used,
+                'estimated_length', f.estimated_length,
                 'ams_slot', f.ams_slot
             )) FROM filament_usage f WHERE f.print_id = p.id
         ) AS filament_info
@@ -304,18 +331,24 @@ def get_layer_tracking_for_prints(print_ids: list[int]):
 def get_all_filament_usage_for_print(print_id: int):
   """
   Retrieves all filament usage entries for a specific print.
-  Returns a dict mapping ams_slot to grams_used.
+  Returns a dict mapping ams_slot to a dict with grams_used and length_used.
   """
   conn = sqlite3.connect(db_config["db_path"])
   conn.row_factory = sqlite3.Row
   cursor = conn.cursor()
 
   cursor.execute('''
-      SELECT ams_slot, grams_used FROM filament_usage
+      SELECT ams_slot, grams_used, length_used FROM filament_usage
       WHERE print_id = ?
   ''', (print_id,))
 
-  results = {row["ams_slot"]: row["grams_used"] for row in cursor.fetchall()}
+  results = {
+      row["ams_slot"]: {
+          "grams_used": row["grams_used"],
+          "length_used": row["length_used"],
+      }
+      for row in cursor.fetchall()
+  }
   conn.close()
   return results
 

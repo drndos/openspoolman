@@ -1,6 +1,12 @@
 import math
 import re
-from config import PRINTER_ID, EXTERNAL_SPOOL_AMS_ID, EXTERNAL_SPOOL_ID, DISABLE_MISMATCH_WARNING
+from config import (
+    PRINTER_ID,
+    EXTERNAL_SPOOL_AMS_ID,
+    EXTERNAL_SPOOL_ID,
+    DISABLE_MISMATCH_WARNING,
+    COLOR_DISTANCE_TOLERANCE,
+)
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from pathlib import Path
@@ -8,6 +14,7 @@ from print_history import update_filament_spool
 import json
 
 import spoolman_client
+from logger import log
 
 SPOOLS = {}
 SPOOLMAN_SETTINGS = {}
@@ -24,8 +31,6 @@ def clear_active_spool_for_tray(ams_id: int, tray_id: int) -> None:
       spoolman_client.patchExtraTags(spool["id"], extras, {"active_tray": json.dumps("")})
       spool.setdefault("extra", {})["active_tray"] = json.dumps("")
       break
-
-COLOR_DISTANCE_TOLERANCE = 80
 
 currency_symbols = {
     "AED": "د.إ", "AFN": "؋", "ALL": "Lek", "AMD": "դր.", "ANG": "ƒ", "AOA": "Kz", 
@@ -84,17 +89,56 @@ def normalize_color_hex(color_hex):
   return color[:6]
 
 
-def color_distance(color1, color2):
-  c1 = normalize_color_hex(color1)
-  c2 = normalize_color_hex(color2)
+def _srgb_component_to_linear(value):
+  component = value / 255
+  if component <= 0.04045:
+    return component / 12.92
+  return ((component + 0.055) / 1.055) ** 2.4
 
-  if not c1 or not c2:
+
+def _xyz_to_lab_component(value):
+  if value > 0.008856:
+    return value ** (1 / 3)
+  return (7.787 * value) + (16 / 116)
+
+
+def _rgb_to_lab(r, g, b):
+  r_lin = _srgb_component_to_linear(r)
+  g_lin = _srgb_component_to_linear(g)
+  b_lin = _srgb_component_to_linear(b)
+
+  x = (r_lin * 0.4124 + g_lin * 0.3576 + b_lin * 0.1805) / 0.95047
+  y = (r_lin * 0.2126 + g_lin * 0.7152 + b_lin * 0.0722)
+  z = (r_lin * 0.0193 + g_lin * 0.1192 + b_lin * 0.9505) / 1.08883
+
+  fx = _xyz_to_lab_component(x)
+  fy = _xyz_to_lab_component(y)
+  fz = _xyz_to_lab_component(z)
+
+  l = (116 * fy) - 16
+  a = 500 * (fx - fy)
+  b = 200 * (fy - fz)
+
+  return l, a, b
+
+
+def _hex_to_lab(color_hex):
+  normalized = normalize_color_hex(color_hex)
+  if not normalized:
     return None
 
-  r1, g1, b1 = (int(c1[i:i+2], 16) for i in (0, 2, 4))
-  r2, g2, b2 = (int(c2[i:i+2], 16) for i in (0, 2, 4))
+  r, g, b = (int(normalized[i:i+2], 16) for i in (0, 2, 4))
+  return _rgb_to_lab(r, g, b)
 
-  return math.sqrt((r1 - r2) ** 2 + (g1 - g2) ** 2 + (b1 - b2) ** 2)
+
+def color_distance(color1, color2):
+  lab1 = _hex_to_lab(color1)
+  lab2 = _hex_to_lab(color2)
+
+  if not lab1 or not lab2:
+    return None
+
+  return math.sqrt(sum((a - b) ** 2 for a, b in zip(lab1, lab2)))
 
 def _log_filament_mismatch(tray_data: dict, spool: dict) -> None:
   try:
@@ -377,7 +421,7 @@ def setActiveTray(spool_id, spool_extra, ams_id, tray_id):
       if spool_id != old_spool["id"] and old_spool.get("extra") and old_spool["extra"].get("active_tray") and json.loads(old_spool["extra"]["active_tray"]) == trayUid(ams_id, tray_id):
         spoolman_client.patchExtraTags(old_spool["id"], old_spool["extra"], {"active_tray": json.dumps("")})
   else:
-    print("Skipping set active tray")
+    log("Skipping set active tray")
 
 # Fetch spools from spoolman
 def fetchSpools(cached=False):

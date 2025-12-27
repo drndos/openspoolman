@@ -1,5 +1,6 @@
 import requests
 import json
+from logger import log
 
 # Code from https://github.com/greghesp/ha-bambulab/issues/673#issuecomment-2455955428
 
@@ -26,12 +27,12 @@ auth_payload = {
 auth_response = requests.post("https://api.bambulab.com/v1/user-service/user/login", headers=headers, json=auth_payload)
 
 # Print the auth response for debugging
-print("Step 1. Auth login response:", auth_response.text)
+log("Step 1. Auth login response:", auth_response.text)
 
 # Check if authentication was successful
 auth_json = auth_response.json()
 if not auth_json.get("success"):
-  print("Authentication failed, attempting code verification")
+  log("Authentication failed, attempting code verification")
 
   # Send the verification code request
   send_code_payload = {
@@ -43,10 +44,10 @@ if not auth_json.get("success"):
     send_code_response = requests.post("https://api.bambulab.com/v1/user-service/user/sendemail/code", headers=headers,
                                        json=send_code_payload)
     if send_code_response.status_code == 200:
-      print("Verification code sent successfully. Check your email.")
+      log("Verification code sent successfully. Check your email.")
     else:
-      print("Failed to send verification code.")
-      print("Response:", send_code_response.text)
+      log("Failed to send verification code.")
+      log("Response:", send_code_response.text)
       exit(1)
 
     verify_code = input("Enter your access code: ")
@@ -56,14 +57,14 @@ if not auth_json.get("success"):
     }
     api_response = requests.post("https://api.bambulab.com/v1/user-service/user/login", headers=headers,
                                  json=verify_payload)
-    print("Step 2 - API verify code response:", api_response.text)
+    log("Step 2 - API verify code response:", api_response.text)
 
     api_token = api_response.json()
     if api_token:
       token = api_token.get("accessToken")
 
     if not token:
-      print("Failed to extract token")
+      log("Failed to extract token")
       exit(1)
 
   elif auth_json.get("loginType") == "tfa":
@@ -73,18 +74,18 @@ if not auth_json.get("success"):
       "tfaKey": tfa_auth,
       "tfaCode": tfa_code
     }
-    print("payload: ", verify_payload)
+    log("payload: ", verify_payload)
     api2_response = requests.post("https://bambulab.com/api-sign-in/tfa", headers=headers, json=verify_payload)
-    print("Step 2 - API MFA response:", api2_response.text)
+    log("Step 2 - API MFA response:", api2_response.text)
 
     cookies = api2_response.cookies.get_dict()
     token_from_tfa = cookies.get("token")
-    print("tokenFromTFA:", token_from_tfa)
+    log("tokenFromTFA:", token_from_tfa)
 
     token = token_from_tfa
 
     if not token:
-      print("Failed to extract token")
+      log("Failed to extract token")
       exit(1)
 
 else:
@@ -92,7 +93,7 @@ else:
   token = auth_json.get("accessToken")
 
 if not token:
-  print("Unable to authenticate or verify. Exiting...")
+  log("Unable to authenticate or verify. Exiting...")
   exit(1)
 
 # Perform the API request to fetch the image with custom headers
@@ -100,14 +101,14 @@ headers["Authorization"] = f"Bearer {token}"
 api_response = requests.get("https://api.bambulab.com/v1/iot-service/api/user/bind", headers=headers)
 
 # Print the API response for debugging
-print("API to fetch info:", api_response.text)
+log("API to fetch info:", api_response.text)
 
 # Check if the API request was successful
 if api_response.status_code != 200:
-  print("API request failed")
+  log("API request failed")
   exit(1)
 
 # Extract and display the relevant information
 api_json = api_response.json()
 
-print(json.dumps(api_json, indent=2))
+log(json.dumps(api_json, indent=2))

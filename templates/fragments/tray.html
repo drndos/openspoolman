@@ -93,11 +93,15 @@
             </div>
           {% else %}
             <!-- Single Color Badge -->
-            <span class="badge d-inline-block p-2"
-                  style="background-color: #{{ tray_data.spool_color }};
-                         color: {% if color_is_dark(tray_data.spool_color) %}#FFFFFF{% else %}#000000{% endif %}">
-              #{{ tray_data.spool_color | upper }}
-            </span>
+            {% if tray_data.spool_color %}
+              <span class="badge d-inline-block p-2"
+                    style="background-color: #{{ tray_data.spool_color }};
+                           color: {% if color_is_dark(tray_data.spool_color) %}#FFFFFF{% else %}#000000{% endif %}">
+                #{{ tray_data.spool_color | upper }}
+              </span>
+            {% else %}
+              <span class="badge d-inline-block p-2 badge-missing-color" title="Color not set"></span>
+            {% endif %}
           {% endif %}
         </div>
 

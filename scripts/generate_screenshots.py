@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 import requests
+from logger import log
 
 # Ensure repository root is importable when executed from the scripts directory
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -155,7 +156,7 @@ async def capture_pages(base_url: str, jobs: list[ScreenshotJob], color_scheme: 
             page = await context.new_page()
 
             url = f"{base_url}{job.route}"
-            print(f"Capturing {url} -> {job.output} ({job.device})")
+            log(f"Capturing {url} -> {job.output} ({job.device})")
             await page.goto(url, wait_until="networkidle")
             await page.wait_for_timeout(1000)
             Path(job.output).parent.mkdir(parents=True, exist_ok=True)
@@ -317,12 +318,12 @@ def main() -> int:
             )
             wait_for_server(f"{base_url}/health")
         elif args.mode == "live" and not args.allow_live_actions:
-            print("Live mode reminder: set OPENSPOOLMAN_LIVE_READONLY=1 on the target server to avoid state changes.")
+            log("Live mode reminder: set OPENSPOOLMAN_LIVE_READONLY=1 on the target server to avoid state changes.")
 
         asyncio.run(capture_pages(base_url, jobs, color_scheme=color_scheme))
         return 0
     except FileNotFoundError as exc:
-        print(exc)
+        log(exc)
         return 1
     finally:
         if server_process is not None:

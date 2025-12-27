@@ -1,6 +1,7 @@
 import os
 import time
 import re
+import builtins
 from datetime import datetime
 
 def append_to_rotating_file(file_path: str, text: str, max_size: int = 1_048_576, max_files: int = 5) -> None:
@@ -35,3 +36,15 @@ def append_to_rotating_file(file_path: str, text: str, max_size: int = 1_048_576
     
     while len(log_files) > max_files:
         os.remove(os.path.join(directory, log_files.pop(0)))  # Remove the oldest file
+
+
+def log_with_timestamp(*args, sep=" ", end="\n", file=None, flush=True) -> None:
+    """
+    Print a message with a leading timestamp, preserving the standard print API.
+    """
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    builtins.print(f"[{timestamp}]", *args, sep=sep, end=end, file=file, flush=flush)
+
+
+# Alias for brevity where logging-style prints are used
+log = log_with_timestamp
