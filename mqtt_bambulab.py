@@ -16,10 +16,13 @@ from config import (
     EXTERNAL_SPOOL_ID,
     TRACK_LAYER_USAGE,
     CLEAR_ASSIGNMENT_WHEN_EMPTY,
+    DOWNLOADED_FILES,
+    PRINTER_NAME,
+
 )
 from messages import GET_VERSION, PUSH_ALL, AMS_FILAMENT_SETTING
 from spoolman_service import spendFilaments, setActiveTray, fetchSpools, clear_active_spool_for_tray
-from tools_3mf import getMetaDataFrom3mf
+from tools_3mf import getMetaDataFrom3mf, clearTempFile
 import time
 import copy
 from collections.abc import Mapping
@@ -292,7 +295,14 @@ def processMessage(data):
             length_used=length_used,
             estimated_length=estimated_length_mm,
         )
-  
+
+    # # Clear out temp files if they exist on FAILED or FINISHED prints
+    # if(DOWNLOADED_FILES.get(f"{PRINTER_NAME}_{PRINTER_IP}") and PRINTER_STATE_LAST["print"].get("gecode_state") == "RUNNING" and (PRINTER_STATE["print"].get("gcode_state") == "FAILED" or PRINTER_STATE["print"].get("gcode_state") == "FINISHED")):
+    #   log("would of cleared here")
+    #   #clearTempFile(PRINTER_NAME, PRINTER_IP)
+
+
+
     #if ("gcode_state" in data["print"] and data["print"]["gcode_state"] == "RUNNING") and ("print_type" in data["print"] and data["print"]["print_type"] != "local") \
     #  and ("tray_tar" in data["print"] and data["print"]["tray_tar"] != "255") and ("stg_cur" in data["print"] and data["print"]["stg_cur"] == 0 and PRINT_CURRENT_STAGE != 0):
     
@@ -306,7 +316,11 @@ def processMessage(data):
         ):
 
         if not PENDING_PRINT_METADATA:
-          PENDING_PRINT_METADATA = getMetaDataFrom3mf(PRINTER_STATE["print"]["gcode_file"])
+          # TODO Seems to be trying to find an internal gcode file inside the 3mf file?
+          # And only firing sometimes, do we need this?
+          #PENDING_PRINT_METADATA = getMetaDataFrom3mf(PRINTER_STATE["print"]["gcode_file"])
+          log(f"[DEBUG] Would have tried to grab file {PRINTER_STATE["print"]["gcode_file"]}")
+
         if PENDING_PRINT_METADATA:
           PENDING_PRINT_METADATA["print_type"] = PRINTER_STATE["print"].get("print_type")
           PENDING_PRINT_METADATA["task_id"] = PRINTER_STATE["print"].get("task_id")
