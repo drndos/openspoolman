@@ -95,6 +95,16 @@ def generate_filament_brand_code(filament_type, filament_brand, filament_variant
     filament_brand_code = "GFS99"
     filament_sub_brand = "PVA"
 
+  elif filament_type == "PETG-CF":
+    filament_brand_code = "GFG98"
+    filament_sub_brand = "PETG-CF"
+
+  elif filament_type == "ASA-CF":
+    filament_brand_code = "GFB51"
+    filament_sub_brand = "ASA-CF"
+
+
+
   elif filament_type == "Support":
     if filament_variant == "G":
       filament_brand_code = "GFS01"
