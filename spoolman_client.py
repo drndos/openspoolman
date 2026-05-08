@@ -1,5 +1,5 @@
 import requests
-from config import SPOOLMAN_API_URL, SPOOL_SORTING
+from config import SPOOLMAN_API_V1, SPOOL_SORTING
 import json
 from logger import append_to_rotating_file, log
 
@@ -31,7 +31,7 @@ def patchExtraTags(spool_id, old_extras, new_extras):
   for key, value in new_extras.items():
     old_extras[key] = value
 
-  resp = requests.patch(f"{SPOOLMAN_API_URL}/spool/{spool_id}", json={
+  resp = requests.patch(f"{SPOOLMAN_API_V1}/spool/{spool_id}", json={
     "extra": old_extras
   })
   _log_spoolman_change(
@@ -45,7 +45,7 @@ def patchExtraTags(spool_id, old_extras, new_extras):
 
 
 def getSpoolById(spool_id):
-  response = requests.get(f"{SPOOLMAN_API_URL}/spool/{spool_id}")
+  response = requests.get(f"{SPOOLMAN_API_V1}/spool/{spool_id}")
   #print(response.status_code)
   #print(response.text)
   return response.json()
@@ -53,9 +53,9 @@ def getSpoolById(spool_id):
 
 def fetchSpoolList():
   if SPOOL_SORTING:
-    response = requests.get(f"{SPOOLMAN_API_URL}/spool?sort={SPOOL_SORTING}")
+    response = requests.get(f"{SPOOLMAN_API_V1}/spool?sort={SPOOL_SORTING}")
   else:
-    response = requests.get(f"{SPOOLMAN_API_URL}/spool")
+    response = requests.get(f"{SPOOLMAN_API_V1}/spool")
     
   #print(response.status_code)
   #print(response.text)
@@ -73,7 +73,7 @@ def consumeSpool(spool_id, use_weight=None, use_length=None):
 
   log(f'Consuming {payload} from spool {spool_id}')
 
-  response = requests.put(f"{SPOOLMAN_API_URL}/spool/{spool_id}/use", json=payload)
+  response = requests.put(f"{SPOOLMAN_API_V1}/spool/{spool_id}/use", json=payload)
   _log_spoolman_change(
     "consume_spool",
     spool_id=spool_id,
@@ -84,7 +84,7 @@ def consumeSpool(spool_id, use_weight=None, use_length=None):
   #print(response.text)
 
 def fetchSettings():
-  response = requests.get(f"{SPOOLMAN_API_URL}/setting/")
+  response = requests.get(f"{SPOOLMAN_API_V1}/setting/")
   #print(response.status_code)
   #print(response.text)
 

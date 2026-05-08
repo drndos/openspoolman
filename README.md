@@ -174,7 +174,9 @@ SpoolMan can print QR-code stickers for every spool; follow the SpoolMan label g
   - set `PRINTER_ID` — find it in the printer settings under Setting → Device → Printer SN.
    - set `PRINTER_ACCESS_CODE` — find it in Setting → LAN Only Mode → Access Code (the LAN Only Mode toggle may stay off).
    - set `PRINTER_IP` — found in Setting → LAN Only Mode → IP Address.
-   - set `SPOOLMAN_BASE_URL` — the URL of your SpoolMan installation without trailing slash.
+   - set `SPOOLMAN_BASE_URL` — the URL of your SpoolMan installation without trailing slash. Used for UI links (menu, spool detail pages) and as the default for API calls when `SPOOLMAN_API_URL` is not set.
+   - set `SPOOLMAN_UI_URL` *(optional)* — semantic alias for `SPOOLMAN_BASE_URL`; either variable satisfies the requirement. If both are set, `SPOOLMAN_BASE_URL` takes precedence.
+   - set `SPOOLMAN_API_URL` *(optional)* — the URL OpenSpoolMan uses for backend API calls to SpoolMan (without trailing slash). Defaults to `SPOOLMAN_BASE_URL`. Useful for reverse-proxy / split-horizon setups where the container reaches SpoolMan via internal DNS (e.g. `http://spoolman:8000`) while the browser needs a public hostname (e.g. `https://spoolman.example.com`).
   - set `AUTO_SPEND` to `True` to enable legacy slicer-estimate tracking (no live layer tracking).
   - set `TRACK_LAYER_USAGE` to `True` to switch to per-layer tracking/consumption **while `AUTO_SPEND` is also `True`**. If `AUTO_SPEND` is `False`, all filament tracking remains disabled regardless of `TRACK_LAYER_USAGE`.
   - set `AUTO_SPEND` to `True` if you want automatic filament usage tracking (see the AUTO SPEND notes below).
