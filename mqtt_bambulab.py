@@ -263,7 +263,7 @@ def processMessage(data):
       if TRACK_LAYER_USAGE:
         FILAMENT_TRACKER.set_print_metadata(PENDING_PRINT_METADATA)
 
-      print_id = insert_print(PRINTER_STATE["print"]["subtask_name"], "cloud", PENDING_PRINT_METADATA["image"])
+      print_id = insert_print(PRINTER_STATE["print"]["subtask_name"], "cloud", PENDING_PRINT_METADATA.get("image"))
 
       if PRINTER_STATE["print"].get("use_ams"):
         PENDING_PRINT_METADATA["ams_mapping"] = PRINTER_STATE["print"]["ams_mapping"]
@@ -313,7 +313,7 @@ def processMessage(data):
           PENDING_PRINT_METADATA["subtask_id"] = PRINTER_STATE["print"].get("subtask_id")
 
           if not PENDING_PRINT_METADATA.get("tracking_started"):
-            print_id = insert_print(PENDING_PRINT_METADATA["file"], PRINTER_STATE["print"]["print_type"], PENDING_PRINT_METADATA["image"])
+            print_id = insert_print(PENDING_PRINT_METADATA.get("file"), PRINTER_STATE["print"]["print_type"], PENDING_PRINT_METADATA.get("image"))
 
             PENDING_PRINT_METADATA["ams_mapping"] = []
             PENDING_PRINT_METADATA["filamentChanges"] = []
