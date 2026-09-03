@@ -36,27 +36,53 @@
 </div>
 
 <script type="text/javascript">
+  // Web NFC allows exactly ONE pending push per document. Starting a new
+  // write() while one is pending aborts the old one, and the old promise
+  // rejects with "AbortError: push is canceled due to a new push request" --
+  // which upstream then displayed as a write failure even though the new push
+  // was still live. Keep a single in-flight write; a second press cancels.
+  let ndefWriter = null;
+  let pendingWrite = null;
+
   function writeNFC() {
-    // Update user message
     const messageBox = document.getElementById("message");
-    messageBox.className = "alert alert-info text-center";
-    messageBox.textContent = "Bring NFC Tag closer to the phone...";
-    if ('NDEFReader' in window) {
-      const ndef = new NDEFReader();
-      // Attempt to write the NFC tag
-      ndef.write({
-        records: [{recordType: "url", data: "{{ BASE_URL }}/spool_info?tag_id={{ myuuid }}"}],
-      }).then(() => {
-        messageBox.className = "alert alert-success text-center";
-        messageBox.textContent = "✅ Message successfully written to the NFC tag!";
-      }).catch(error => {
-        messageBox.className = "alert alert-danger text-center";
-        messageBox.textContent = "❌ Write failed. Please try again: " + error;
-      });
-    } else {
+    const button = document.getElementById("write");
+
+    if (!('NDEFReader' in window)) {
       messageBox.className = "alert alert-danger text-center";
       messageBox.textContent = "Your browser or device does not support NFC writing. Try Android Phone with Chrome browser.";
+      return;
     }
+
+    if (pendingWrite) {
+      pendingWrite.abort();   // explicit cancel, never a competing push
+      return;
+    }
+
+    ndefWriter = ndefWriter || new NDEFReader();
+    pendingWrite = new AbortController();
+    button.innerHTML = '<i class="bi bi-x-circle me-2"></i> Cancel';
+    messageBox.className = "alert alert-info text-center";
+    messageBox.textContent = "Bring NFC Tag closer to the phone...";
+
+    ndefWriter.write(
+      {records: [{recordType: "url", data: "{{ BASE_URL }}/spool_info?tag_id={{ myuuid }}"}]},
+      {signal: pendingWrite.signal}
+    ).then(() => {
+      messageBox.className = "alert alert-success text-center";
+      messageBox.textContent = "\u2705 Message successfully written to the NFC tag!";
+    }).catch(error => {
+      if (error && error.name === "AbortError") {
+        messageBox.className = "alert alert-secondary text-center";
+        messageBox.textContent = "Write cancelled. Press \"Start Writing NFC Tag\" to try again.";
+        return;
+      }
+      messageBox.className = "alert alert-danger text-center";
+      messageBox.textContent = "\u274c Write failed. Please try again: " + error;
+    }).finally(() => {
+      pendingWrite = null;
+      button.innerHTML = '<i class="bi bi-nfc me-2"></i> Start Writing NFC Tag';
+    });
   }
 </script>
 {% endblock %}
