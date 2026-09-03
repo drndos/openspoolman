@@ -315,7 +315,7 @@ def processMessage(data):
           if not PENDING_PRINT_METADATA.get("tracking_started"):
             print_id = insert_print(PENDING_PRINT_METADATA["file"], PRINTER_STATE["print"]["print_type"], PENDING_PRINT_METADATA["image"])
 
-            PENDING_PRINT_METADATA["ams_mapping"] = []
+            PENDING_PRINT_METADATA["ams_mapping"] = PRINTER_STATE["print"].get("ams_mapping") or []
             PENDING_PRINT_METADATA["filamentChanges"] = []
             PENDING_PRINT_METADATA["assigned_trays"] = []
             PENDING_PRINT_METADATA["complete"] = False
@@ -391,10 +391,8 @@ def processMessage(data):
 
     if PENDING_PRINT_METADATA and PENDING_PRINT_METADATA.get("complete"):
       if TRACK_LAYER_USAGE:
-        if PENDING_PRINT_METADATA.get("print_type") == "local":
-          FILAMENT_TRACKER.apply_ams_mapping(PENDING_PRINT_METADATA.get("ams_mapping") or [])
-        else:
-          FILAMENT_TRACKER.set_print_metadata(PENDING_PRINT_METADATA)
+        FILAMENT_TRACKER.set_print_metadata(PENDING_PRINT_METADATA)
+        FILAMENT_TRACKER.apply_ams_mapping(PENDING_PRINT_METADATA.get("ams_mapping") or [])
         # Per-layer tracker will handle consumption; skip upfront spend.
       else:
         spendFilaments(PENDING_PRINT_METADATA)
