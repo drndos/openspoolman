@@ -186,7 +186,7 @@ SpoolMan can print QR-code stickers for every spool; follow the SpoolMan label g
  - Run SpoolMan.
  - Add these extra fields in SpoolMan:
    - **Filaments**
-     - "type","Type","Choice", "AERO,CF,GF,FR,Basic,HF,Translucent,Aero,Dynamic,Galaxy,Glow,Impact,Lite,Marble,Matte,Metal,Silk,Silk+,Sparkle,Tough,Tough+,Wood,Support for ABS,Support for PA PET,Support for PLA,Support for PLA-PETG,G,W,85A,90A,95A,95A HF,for AMS"
+     - "type","Type","Choice", "AERO,CF,GF,FR,Basic,HF,Translucent,Aero,Dynamic,Galaxy,Glow,Impact,Lite,Marble,Matte,Metal,Silk,Silk+,Sparkle,Tough,Tough+,Wood,Support for ABS,Support for PA PET,Support for PLA,Support for PLA-PETG,G,W,85A,90A,95A,95A HF for AMS"
      - "nozzle_temperature","Nozzle Temperature","Integer Range","°C","190 - 230"
      - "filament_id","Filament ID", "Text"
    - **Spools**
