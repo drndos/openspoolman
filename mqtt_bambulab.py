@@ -7,6 +7,7 @@ from threading import Thread
 from typing import Any, Iterable
 
 import paho.mqtt.client as mqtt
+import requests
 
 from config import (
     PRINTER_ID,
@@ -36,6 +37,12 @@ PRINTER_STATE_LAST = {}
 
 PENDING_PRINT_METADATA = {}
 FILAMENT_TRACKER = FilamentUsageTracker()
+EMPTY_TRAY_UUID = "00000000000000000000000000000000"  # tray_uuid of a non-Bambu spool
+TAG_REFETCH_INTERVAL_S = 60
+LAST_TAG_REFETCH = None
+# Trays whose SpoolMan assignment was already cleared for an unmapped Bambu tag:
+# (ams_id, tray_id) -> tray_uuid. Cleared once per tag, not on every status report.
+CLEARED_UNMAPPED_TRAYS = {}
 LOG_FILE = "/home/app/logs/mqtt.log"
 
 def getPrinterModel():
@@ -430,6 +437,32 @@ def clear_ams_tray_assignment(ams_id, tray_id):
 
   publish(MQTT_CLIENT, ams_message)
 
+
+def spools_with_tag(tray_uuid):
+  """Spools whose `tag` extra field matches a Bambu tray UUID, or None if SpoolMan can't be read.
+
+  Looks in the cached spool list first. A tag missing from the cache may belong
+  to a spool added in SpoolMan after the cache was filled, so refetch then, but
+  at most once per TAG_REFETCH_INTERVAL_S to keep status reports from turning
+  into SpoolMan requests.
+  """
+  global LAST_TAG_REFETCH
+
+  def matching(spool_list):
+    return [spool for spool in spool_list
+            if spool.get("extra", {}).get("tag") and json.loads(spool["extra"]["tag"]) == tray_uuid]
+
+  try:
+    spools = matching(fetchSpools(True))
+    now = time.monotonic()
+    if not spools and (LAST_TAG_REFETCH is None or now - LAST_TAG_REFETCH >= TAG_REFETCH_INTERVAL_S):
+      LAST_TAG_REFETCH = now
+      spools = matching(fetchSpools())
+  except requests.RequestException as error:
+    log(f"      - SpoolMan unavailable, tray left as is: {error}")
+    return None
+  return spools
+
 # Inspired by https://github.com/Donkie/Spoolman/issues/217#issuecomment-2303022970
 def on_message(client, userdata, msg):
   global LAST_AMS_CONFIG, PRINTER_STATE, PRINTER_STATE_LAST, PENDING_PRINT_METADATA, PRINTER_MODEL
@@ -472,21 +505,13 @@ def on_message(client, userdata, msg):
             log(
                 f"    - [{num2letter(ams['id'])}{tray['id']}] {tray['tray_sub_brands']} {tray['tray_color']} ({str(tray['remain']).zfill(3)}%) [[ {tray['tray_uuid']} ]]")
 
-            found = False
-            tray_uuid = "00000000000000000000000000000000"
+            tray_uuid = tray["tray_uuid"]
+            tray_key = (ams['id'], tray['id'])
+            spools = spools_with_tag(tray_uuid) if tray_uuid != EMPTY_TRAY_UUID else []
+            if spools is None:
+              continue  # couldn't check the tag, so don't conclude it is unknown
 
-            for spool in fetchSpools(True):
-
-              tray_uuid = tray["tray_uuid"]
-
-              if not spool.get("extra", {}).get("tag"):
-                continue
-              tag = json.loads(spool["extra"]["tag"])
-              if tag != tray["tray_uuid"]:
-                continue
-
-              found = True
-
+            for spool in spools:
               setActiveTray(spool['id'], spool["extra"], ams['id'], tray["id"])
 
               # TODO: filament remaining - Doesn't work for AMS Lite
@@ -494,15 +519,22 @@ def on_message(client, userdata, msg):
               #  "remaining_weight": tray["remain"] / 100 * tray["tray_weight"]
               # })
 
-            if not found and tray_uuid == "00000000000000000000000000000000":
+            if spools or tray_uuid == EMPTY_TRAY_UUID:
+              CLEARED_UNMAPPED_TRAYS.pop(tray_key, None)
+
+            if not spools and tray_uuid == EMPTY_TRAY_UUID:
               log("      - non Bambulab Spool!")
-            elif not found:
+            elif not spools:
               log("      - Not found. Update spool tag!")
               tray["unmapped_bambu_tag"] = tray_uuid
               tray["issue"] = True
-              clear_active_spool_for_tray(ams['id'], tray['id'])
-              clear_ams_tray_assignment(ams['id'], tray['id'])
+              # Only the SpoolMan assignment is cleared. The printer read the tray from the
+              # spool's RFID tag, so resetting the tray there would discard correct data.
+              if CLEARED_UNMAPPED_TRAYS.get(tray_key) != tray_uuid:
+                CLEARED_UNMAPPED_TRAYS[tray_key] = tray_uuid
+                clear_active_spool_for_tray(ams['id'], tray['id'])
           else:
+            CLEARED_UNMAPPED_TRAYS.pop((ams['id'], tray['id']), None)
             log(
                 f"    - [{num2letter(ams['id'])}{tray['id']}]")
             log("      - No Spool!")
