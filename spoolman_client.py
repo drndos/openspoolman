@@ -4,6 +4,9 @@ import json
 from logger import append_to_rotating_file, log
 
 SPOOLMAN_LOG_FILE = "/home/app/logs/spoolman.log"
+# Bounds the spool-list fetch, which the MQTT thread also makes: a SpoolMan that
+# accepts connections but never answers would otherwise stall printer processing.
+SPOOLMAN_TIMEOUT_S = 10
 
 
 def _log_spoolman_change(action, spool_id=None, payload=None, status=None):
@@ -53,9 +56,9 @@ def getSpoolById(spool_id):
 
 def fetchSpoolList():
   if SPOOL_SORTING:
-    response = requests.get(f"{SPOOLMAN_API_URL}/spool?sort={SPOOL_SORTING}")
+    response = requests.get(f"{SPOOLMAN_API_URL}/spool?sort={SPOOL_SORTING}", timeout=SPOOLMAN_TIMEOUT_S)
   else:
-    response = requests.get(f"{SPOOLMAN_API_URL}/spool")
+    response = requests.get(f"{SPOOLMAN_API_URL}/spool", timeout=SPOOLMAN_TIMEOUT_S)
     
   #print(response.status_code)
   #print(response.text)
